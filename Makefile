@@ -10,14 +10,16 @@ SRC := \
   src/tb_scoreboard_pkg.vhd \
   src/axis_pkg.vhd \
   src/axi_lite_pkg.vhd \
-  src/coverage_pkg.vhd
+  src/coverage_pkg.vhd \
+  src/random_pkg.vhd
 
 TBS := \
   tb/tb_core_tb.vhd \
   tb/axis_tb.vhd \
-  tb/axi_lite_tb.vhd
+  tb/axi_lite_tb.vhd \
+  tb/random_tb.vhd
 
-TB_TOPS := tb_core_tb axis_tb axi_lite_tb
+TB_TOPS := tb_core_tb axis_tb axi_lite_tb random_tb
 
 .PHONY: all compile test run clean
 
