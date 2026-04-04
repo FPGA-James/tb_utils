@@ -59,7 +59,7 @@ package body tb_scoreboard_pkg is
       variable expected : std_logic_vector(actual'range);
     begin
       if head = null then
-        print(ERROR, "scoreboard.check: queue empty, unexpected data" & (", " & msg));
+        print(ERROR, "[scoreboard] check: queue empty, unexpected data" & (", " & msg));
         v_fails := v_fails + 1;
         return;
       end if;
@@ -70,27 +70,27 @@ package body tb_scoreboard_pkg is
       v_depth := v_depth - 1;
       deallocate(node);
       if actual /= expected then
-        print(ERROR, "scoreboard.check FAIL: expected 0x" & to_hstring(expected) &
+        print(ERROR, "[scoreboard] check FAIL: expected 0x" & to_hstring(expected) &
                      " got 0x" & to_hstring(actual) & (", " & msg));
         v_fails := v_fails + 1;
       else
-        print(DEBUG, "scoreboard.check PASS" & (", " & msg));
+        print(DEBUG, "[scoreboard] check PASS" & (", " & msg));
         v_passes := v_passes + 1;
       end if;
     end procedure;
 
     procedure final_report is
     begin
-      print(INFO, "=== Scoreboard Final Report ===");
-      print(INFO, "  PASS: " & integer'image(v_passes));
-      print(INFO, "  FAIL: " & integer'image(v_fails));
+      print(INFO, "[scoreboard] === Scoreboard Final Report ===");
+      print(INFO, "[scoreboard]   PASS: " & integer'image(v_passes));
+      print(INFO, "[scoreboard]   FAIL: " & integer'image(v_fails));
       if v_depth > 0 then
-        print(ERROR, "  UNCHECKED items remaining in queue: " & integer'image(v_depth));
+        print(ERROR, "[scoreboard]   UNCHECKED items remaining in queue: " & integer'image(v_depth));
       end if;
       if v_fails = 0 and v_depth = 0 then
-        print(INFO, "  Result: ALL PASS");
+        print(INFO, "[scoreboard]   Result: ALL PASS");
       else
-        print(ERROR, "  Result: FAILURES DETECTED");
+        print(ERROR, "[scoreboard]   Result: FAILURES DETECTED");
       end if;
     end procedure;
 

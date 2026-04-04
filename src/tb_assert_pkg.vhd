@@ -53,11 +53,11 @@ package body tb_assert_pkg is
   ) is
   begin
     if actual /= expected then
-      print(ERROR, "check_equal FAIL: expected 0x" & to_hstring(expected) &
+      print(ERROR, "[assert] check_equal FAIL: expected 0x" & to_hstring(expected) &
                    " got 0x" & to_hstring(actual) &
                    (", " & msg));
     else
-      print(DEBUG, "check_equal PASS" & (", " & msg));
+      print(DEBUG, "[assert] check_equal PASS" & (", " & msg));
     end if;
   end procedure;
 
@@ -68,10 +68,10 @@ package body tb_assert_pkg is
   ) is
   begin
     if actual /= expected then
-      print(ERROR, "check_equal FAIL: expected " & integer'image(expected) &
+      print(ERROR, "[assert] check_equal FAIL: expected " & integer'image(expected) &
                    " got " & integer'image(actual) & (", " & msg));
     else
-      print(DEBUG, "check_equal PASS" & (", " & msg));
+      print(DEBUG, "[assert] check_equal PASS" & (", " & msg));
     end if;
   end procedure;
 
@@ -82,19 +82,19 @@ package body tb_assert_pkg is
   ) is
   begin
     if actual /= expected then
-      print(ERROR, "check_equal FAIL: expected " & std_logic'image(expected) &
+      print(ERROR, "[assert] check_equal FAIL: expected " & std_logic'image(expected) &
                    " got " & std_logic'image(actual) & (", " & msg));
     else
-      print(DEBUG, "check_equal PASS" & (", " & msg));
+      print(DEBUG, "[assert] check_equal PASS" & (", " & msg));
     end if;
   end procedure;
 
   procedure check_true(constant condition : in boolean; constant msg : in string := "") is
   begin
     if not condition then
-      print(ERROR, "check_true FAIL: condition is false" & (", " & msg));
+      print(ERROR, "[assert] check_true FAIL: condition is false" & (", " & msg));
     else
-      print(DEBUG, "check_true PASS" & (", " & msg));
+      print(DEBUG, "[assert] check_true PASS" & (", " & msg));
     end if;
   end procedure;
 
@@ -111,11 +111,11 @@ package body tb_assert_pkg is
       wait for step;
       elapsed := elapsed + step;
       if sig /= initial then
-        print(ERROR, "check_stable FAIL: signal changed at " & time'image(now) & (", " & msg));
+        print(ERROR, "[assert] check_stable FAIL: signal changed at " & time'image(now) & (", " & msg));
         return;
       end if;
     end loop;
-    print(DEBUG, "check_stable PASS" & (", " & msg));
+    print(DEBUG, "[assert] check_stable PASS" & (", " & msg));
   end procedure;
 
 end package body tb_assert_pkg;

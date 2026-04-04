@@ -112,7 +112,7 @@ package body axi_lite_pkg is
     bready <= '0';
 
     if bresp /= "00" then
-      print(ERROR, "axi_lite_write: bad BRESP = " & to_hstring(bresp));
+      print(ERROR, "[axi-lite] write: bad BRESP = " & to_hstring(bresp));
     end if;
   end procedure;
 
@@ -141,7 +141,7 @@ package body axi_lite_pkg is
     rready <= '0';
 
     if rresp /= "00" then
-      print(ERROR, "axi_lite_read: bad RRESP = " & to_hstring(rresp));
+      print(ERROR, "[axi-lite] read: bad RRESP = " & to_hstring(rresp));
     end if;
   end procedure;
 
