@@ -9,7 +9,8 @@ SRC := \
   src/tb_assert_pkg.vhd \
   src/tb_scoreboard_pkg.vhd \
   src/axis_pkg.vhd \
-  src/axi_lite_pkg.vhd
+  src/axi_lite_pkg.vhd \
+  src/coverage_pkg.vhd
 
 TBS := \
   tb/tb_core_tb.vhd \

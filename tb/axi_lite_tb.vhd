@@ -6,6 +6,7 @@ use tb_utils.tb_pkg.all;
 use tb_utils.tb_assert_pkg.all;
 use tb_utils.tb_scoreboard_pkg.all;
 use tb_utils.axi_lite_pkg.all;
+use tb_utils.coverage_pkg.all;
 
 entity axi_lite_tb is
 end entity axi_lite_tb;
@@ -35,7 +36,9 @@ architecture sim of axi_lite_tb is
   signal rdata   : std_logic_vector(31 downto 0) := (others => '0');
   signal rresp   : std_logic_vector(1 downto 0)  := "00";
 
-  shared variable sb : scoreboard_t;
+  shared variable sb       : scoreboard_t;
+  shared variable addr_cov : t_coverage;  -- which register addresses were accessed
+  shared variable txn_cov  : t_coverage;  -- write (0) vs read (1) transaction types
 
   -- Simple 4-register slave model (word-addressed via bits [3:2])
   type reg_file_t is array(0 to 3) of std_logic_vector(31 downto 0);
@@ -95,6 +98,14 @@ begin
     );
     variable rd : std_logic_vector(31 downto 0);
   begin
+    -- Coverage bins: one per register address; write (0) vs read (1)
+    addr_cov.add_bin("reg0",  0,  3);
+    addr_cov.add_bin("reg1",  4,  7);
+    addr_cov.add_bin("reg2",  8, 11);
+    addr_cov.add_bin("reg3", 12, 15);
+    txn_cov.add_bin("write", 0, 0);
+    txn_cov.add_bin("read",  1, 1);
+
     wait for 30 ns;
 
     -- Write phase
@@ -107,6 +118,8 @@ begin
         WR_DATA(i)
       );
       sb.push(WR_DATA(i));
+      addr_cov.sample(i * 4);
+      txn_cov.sample(0);
     end loop;
 
     -- Read phase + scoreboard check
@@ -118,8 +131,17 @@ begin
         rd
       );
       sb.check(rd, "reg " & integer'image(i));
+      addr_cov.sample(i * 4);
+      txn_cov.sample(1);
+      -- Cross: which (write_addr, read_addr) pairs were exercised
+      addr_cov.sample_cross(i * 4, i * 4);
     end loop;
 
+    -- Coverage report
+    addr_cov.report_coverage;
+    txn_cov.report_coverage;
+    check_true(addr_cov.get_coverage = 100.0, "all register addresses accessed");
+    check_true(txn_cov.get_coverage = 100.0,  "both write and read transactions seen");
     sb.final_report;
     check_equal(sb.fail_count, 0, "no scoreboard failures");
     print(INFO, "axi_lite_tb complete");
