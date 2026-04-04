@@ -7,7 +7,7 @@
 --   - Weighted bins (per-bin hit targets)
 --   - Per-bin hit counts
 --   - 2-signal cross-coverage matrix
---   - Report via 'report' statements and/or text file
+--   - Report via tb_pkg print() and/or text file
 -- =============================================================================
 
 library ieee;
@@ -15,6 +15,8 @@ use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
 use ieee.math_real.all;
 use std.textio.all;
+library tb_utils;
+use tb_utils.tb_pkg.all;
 
 package coverage_pkg is
 
@@ -149,10 +151,10 @@ package body coverage_pkg is
             weight : in positive := 1
         ) is
         begin
-            assert v_bin_count < MAX_BINS
-                report "coverage_pkg: MAX_BINS (" & integer'image(MAX_BINS) &
-                       ") exceeded - increase the constant."
-                severity failure;
+            if v_bin_count >= MAX_BINS then
+                print(FATAL, "[coverage.add_bin] MAX_BINS (" & integer'image(MAX_BINS) &
+                             ") exceeded - increase the constant.");
+            end if;
 
             v_bins(v_bin_count) := (
                 name   => to_bin_name(name),
@@ -312,42 +314,34 @@ package body coverage_pkg is
 
         -- ----------------------------------------------------------------------
         procedure report_coverage is
-            variable covered : integer := 0;
         begin
-            report "=================================================================" severity note;
-            report "  Functional Coverage Report" severity note;
-            report "=================================================================" severity note;
-            report "  1D Bins:" severity note;
+            print(INFO, "[coverage.report] =================================================================");
+            print(INFO, "[coverage.report]   Functional Coverage Report");
+            print(INFO, "[coverage.report] =================================================================");
+            print(INFO, "[coverage.report]   1D Bins:");
 
             for i in 0 to v_bin_count - 1 loop
-                if v_bins(i).hits >= v_bins(i).weight then
-                    covered := covered + 1;
-                end if;
-                report "  [" & integer'image(i) & "] " &
-                       v_bins(i).name &
-                       "  range=[" & integer'image(v_bins(i).min) &
-                       ".."        & integer'image(v_bins(i).max) & "]" &
-                       "  hits="   & integer'image(v_bins(i).hits) &
-                       "  target=" & integer'image(v_bins(i).weight) &
-                       "  covered=" & boolean'image(v_bins(i).hits >= v_bins(i).weight)
-                    severity note;
+                print(INFO, "[coverage.report]   [" & integer'image(i) & "] " &
+                            v_bins(i).name &
+                            "  range=[" & integer'image(v_bins(i).min) &
+                            ".."        & integer'image(v_bins(i).max) & "]" &
+                            "  hits="   & integer'image(v_bins(i).hits) &
+                            "  target=" & integer'image(v_bins(i).weight) &
+                            "  covered=" & boolean'image(v_bins(i).hits >= v_bins(i).weight));
             end loop;
 
-            report "  1D Coverage : " & fmt_pct(get_coverage) severity note;
-            report "  Cross Coverage : " & fmt_pct(get_cross_coverage) severity note;
-
-            report "  Cross Matrix (non-zero cells):" severity note;
+            print(INFO, "[coverage.report]   1D Coverage   : " & fmt_pct(get_coverage));
+            print(INFO, "[coverage.report]   Cross Coverage: " & fmt_pct(get_cross_coverage));
+            print(INFO, "[coverage.report]   Cross Matrix (non-zero cells):");
             for i in 0 to v_bin_count - 1 loop
                 for j in 0 to v_bin_count - 1 loop
                     if v_cross(i, j) > 0 then
-                        report "    [" & integer'image(i) & "][" & integer'image(j) & "] = " &
-                               integer'image(v_cross(i, j))
-                            severity note;
+                        print(INFO, "[coverage.report]     [" & integer'image(i) & "][" &
+                                    integer'image(j) & "] = " & integer'image(v_cross(i, j)));
                     end if;
                 end loop;
             end loop;
-
-            report "=================================================================" severity note;
+            print(INFO, "[coverage.report] =================================================================");
         end procedure;
 
         -- ----------------------------------------------------------------------
@@ -356,12 +350,12 @@ package body coverage_pkg is
             variable status : file_open_status;
         begin
             file_open(status, f, filename, write_mode);
-            assert status = open_ok
-                report "coverage_pkg: cannot open file '" & filename & "'"
-                severity failure;
+            if status /= open_ok then
+                print(FATAL, "[coverage.write] cannot open file '" & filename & "'");
+            end if;
             write_report_to_file(f);
             file_close(f);
-            report "coverage_pkg: report written to '" & filename & "'" severity note;
+            print(INFO, "[coverage.write] report written to '" & filename & "'");
         end procedure;
 
         -- ----------------------------------------------------------------------
