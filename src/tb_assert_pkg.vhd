@@ -34,7 +34,7 @@ package tb_assert_pkg is
     constant msg       : in string := ""
   );
 
-  -- Check signal remains stable for the given duration (sampled every delta).
+  -- Check signal remains stable for the given duration (sampled every 1 ns).
   -- Must be called from a process; blocks for duration.
   procedure check_stable(
     signal   sig      : in std_logic_vector;
@@ -69,9 +69,9 @@ package body tb_assert_pkg is
   begin
     if actual /= expected then
       print(ERROR, "check_equal FAIL: expected " & integer'image(expected) &
-                   " got " & integer'image(actual) & ", " & msg);
+                   " got " & integer'image(actual) & (", " & msg));
     else
-      print(DEBUG, "check_equal PASS, " & msg);
+      print(DEBUG, "check_equal PASS" & (", " & msg));
     end if;
   end procedure;
 
@@ -83,18 +83,18 @@ package body tb_assert_pkg is
   begin
     if actual /= expected then
       print(ERROR, "check_equal FAIL: expected " & std_logic'image(expected) &
-                   " got " & std_logic'image(actual) & ", " & msg);
+                   " got " & std_logic'image(actual) & (", " & msg));
     else
-      print(DEBUG, "check_equal PASS, " & msg);
+      print(DEBUG, "check_equal PASS" & (", " & msg));
     end if;
   end procedure;
 
   procedure check_true(constant condition : in boolean; constant msg : in string := "") is
   begin
     if not condition then
-      print(ERROR, "check_true FAIL: condition is false, " & msg);
+      print(ERROR, "check_true FAIL: condition is false" & (", " & msg));
     else
-      print(DEBUG, "check_true PASS, " & msg);
+      print(DEBUG, "check_true PASS" & (", " & msg));
     end if;
   end procedure;
 
@@ -111,11 +111,11 @@ package body tb_assert_pkg is
       wait for step;
       elapsed := elapsed + step;
       if sig /= initial then
-        print(ERROR, "check_stable FAIL: signal changed at " & time'image(now) & ", " & msg);
+        print(ERROR, "check_stable FAIL: signal changed at " & time'image(now) & (", " & msg));
         return;
       end if;
     end loop;
-    print(DEBUG, "check_stable PASS, " & msg);
+    print(DEBUG, "check_stable PASS" & (", " & msg));
   end procedure;
 
 end package body tb_assert_pkg;
