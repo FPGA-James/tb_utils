@@ -24,18 +24,19 @@ begin
     clk_gen(clk, 10 ns);
   end process;
 
-  -- Master: send 4 beats
+  -- Master: pre-load scoreboard then send 4 beats
   master : process
   begin
+    -- Push all expected values before driving so slave never races ahead of the queue
+    sb.push(x"DEADBEEF");
+    sb.push(x"CAFEBABE");
+    sb.push(x"12345678");
+    sb.push(x"AABBCCDD");
     wait for 20 ns;
     axis_write(clk, tvalid, tready, tdata, tlast, x"DEADBEEF", last => false);
-    sb.push(x"DEADBEEF");
     axis_write(clk, tvalid, tready, tdata, tlast, x"CAFEBABE", last => false);
-    sb.push(x"CAFEBABE");
     axis_write(clk, tvalid, tready, tdata, tlast, x"12345678", last => false);
-    sb.push(x"12345678");
     axis_write(clk, tvalid, tready, tdata, tlast, x"AABBCCDD", last => true);
-    sb.push(x"AABBCCDD");
     wait;
   end process;
 

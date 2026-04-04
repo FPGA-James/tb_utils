@@ -28,7 +28,9 @@ $(WORKDIR)/.compiled: $(SRC) $(TBS)
 	mkdir -p $(WORKDIR)
 	$(GHDL) -i $(GHDLFLAGS) --work=$(LIB) --workdir=$(WORKDIR) $(SRC)
 	$(GHDL) -i $(GHDLFLAGS) --work=$(LIB) --workdir=$(WORKDIR) $(TBS)
-	$(GHDL) -m $(GHDLFLAGS) --work=$(LIB) --workdir=$(WORKDIR) $(TB_TOPS)
+	@for tb in $(TB_TOPS); do \
+	  $(GHDL) -m $(GHDLFLAGS) --work=$(LIB) --workdir=$(WORKDIR) $$tb; \
+	done
 	touch $@
 
 test: compile

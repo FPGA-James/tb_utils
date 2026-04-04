@@ -11,7 +11,7 @@ package tb_scoreboard_pkg is
   type slv_node_t is record
     data : std_logic_vector(255 downto 0);  -- wide enough for most buses
     len  : natural;                          -- actual width in bits
-    next : slv_node_ptr_t;
+    nxt  : slv_node_ptr_t;
   end record;
 
   -- Protected scoreboard: push expected values from the drive side,
@@ -43,12 +43,12 @@ package body tb_scoreboard_pkg is
       node := new slv_node_t;
       node.data(data'length - 1 downto 0) := data;
       node.len  := data'length;
-      node.next := null;
+      node.nxt := null;
       if tail = null then
         head := node;
         tail := node;
       else
-        tail.next := node;
+        tail.nxt := node;
         tail := node;
       end if;
       v_depth := v_depth + 1;
@@ -65,7 +65,7 @@ package body tb_scoreboard_pkg is
       end if;
       node := head;
       expected := node.data(actual'length - 1 downto 0);
-      head := head.next;
+      head := head.nxt;
       if head = null then tail := null; end if;
       v_depth := v_depth - 1;
       deallocate(node);
