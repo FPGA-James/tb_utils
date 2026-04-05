@@ -1,0 +1,32 @@
+package:
+  name: tb_utils
+  authors:
+    - "FPGA-James"
+
+# ── External HDL dependencies ─────────────────────────────────────────────────
+# Run `make deps` to fetch these into deps/ via `bender vendor init`.
+
+dependencies:
+  # hdl-modules: VHDL support library required by the hdl_registers AXI-Lite
+  # register file generator (axi_lite_pkg, register_file_pkg).
+
+# ── Source file declarations ──────────────────────────────────────────────────
+# Targets:
+#   rtl_vhdl   — VHDL RTL sources (included for VHDL simulation and synthesis)
+#   rtl_sv     — SystemVerilog RTL sources
+#   gen_vhdl   — Generated VHDL register files (produced by `make regs`)
+#   tb_vhdl    — VHDL testbench sources (simulation only)
+
+sources:
+  # ── VHDL RTL ──────────────────────────────────────────────────────────────
+  - target: rtl_vhdl
+    files:
+      - src/axi_lite_pkg.vhd
+      - src/axis_pkg.vhd
+      - src/coverage_pkg.vhd
+      - src/flow_control_pkg.vhd
+      - src/random_pkg.vhd
+      - src/sequence_pkg.vhd
+      - src/tb_assert_pkg.vhd
+      - src/tb_pkg.vhd
+      - src/tb_scoreboard_pkg.vhd
