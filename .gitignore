@@ -1,0 +1,10 @@
+# GHDL build artefacts
+work/
+*.o
+*.cf
+
+# Simulation outputs
+*.vcd
+*.ghw
+*.fst
+/.DS_Store
