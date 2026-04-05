@@ -7,6 +7,7 @@ use tb_utils.tb_assert_pkg.all;
 use tb_utils.tb_scoreboard_pkg.all;
 use tb_utils.axi_lite_pkg.all;
 use tb_utils.coverage_pkg.all;
+use tb_utils.random_pkg.all;
 
 entity axi_lite_tb is
 end entity axi_lite_tb;
@@ -37,7 +38,8 @@ architecture sim of axi_lite_tb is
   signal rresp   : std_logic_vector(1 downto 0)  := "00";
 
   shared variable sb       : scoreboard_t;
-  shared variable addr_cov : t_coverage;  -- which register addresses were accessed
+  shared variable rng      : rand_t;
+  shared variable addr_cov : t_coverage;  -- which register indices were written
   shared variable txn_cov  : t_coverage;  -- write (0) vs read (1) transaction types
 
   -- Simple 4-register slave model (word-addressed via bits [3:2])
@@ -91,60 +93,75 @@ begin
     end loop;
   end process;
 
-  -- Master: write 4 registers then read them back
+  -- Master: random writes and reads until all register addresses covered or 3 ms timeout
   master : process
-    constant WR_DATA : reg_file_t := (
-      x"11111111", x"22222222", x"33333333", x"44444444"
-    );
-    variable rd : std_logic_vector(31 downto 0);
+    -- Shadow register file tracks what was written, for read-back verification
+    variable shadow_regs : reg_file_t := (others => (others => '0'));
+    variable wr_data     : std_logic_vector(31 downto 0);
+    variable rd_data     : std_logic_vector(31 downto 0);
+    variable widx        : integer;
+    variable ridx        : integer;
+    variable iter        : integer := 0;
   begin
-    -- Coverage bins: one per register address; write (0) vs read (1)
-    addr_cov.add_bin("reg0",  0,  3);
-    addr_cov.add_bin("reg1",  4,  7);
-    addr_cov.add_bin("reg2",  8, 11);
-    addr_cov.add_bin("reg3", 12, 15);
+    -- Coverage bins: register index 0-3; write (0) vs read (1)
+    addr_cov.set_name("addr_cov");
+    addr_cov.add_bin("reg0", 0, 0);
+    addr_cov.add_bin("reg1", 1, 1);
+    addr_cov.add_bin("reg2", 2, 2);
+    addr_cov.add_bin("reg3", 3, 3);
+    txn_cov.set_name("txn_cov");
     txn_cov.add_bin("write", 0, 0);
     txn_cov.add_bin("read",  1, 1);
 
+    rng.seed(56, 78);
     wait for 30 ns;
 
-    -- Write phase
-    for i in 0 to 3 loop
+    while (not addr_cov.is_covered or not txn_cov.is_covered)
+          and now < 3 ms loop
+
+      -- Write: random register index, random data
+      widx    := rng.rand_int(0, 3);
+      wr_data := rng.rand_slv(32);
       axi_lite_write(clk,
         awvalid, awready, awaddr,
         wvalid, wready, wdata, wstrb,
         bvalid, bready, bresp,
-        std_logic_vector(to_unsigned(i * 4, 8)),
-        WR_DATA(i)
+        std_logic_vector(to_unsigned(widx * 4, 8)),
+        wr_data
       );
-      sb.push(WR_DATA(i));
-      addr_cov.sample(i * 4);
+      shadow_regs(widx) := wr_data;
+      addr_cov.sample(widx);
       txn_cov.sample(0);
-    end loop;
 
-    -- Read phase + scoreboard check
-    for i in 0 to 3 loop
+      -- Read: random register index, verify against shadow
+      ridx := rng.rand_int(0, 3);
+      sb.push(shadow_regs(ridx));
       axi_lite_read(clk,
         arvalid, arready, araddr,
         rvalid, rready, rdata, rresp,
-        std_logic_vector(to_unsigned(i * 4, 8)),
-        rd
+        std_logic_vector(to_unsigned(ridx * 4, 8)),
+        rd_data
       );
-      sb.check(rd, "reg " & integer'image(i));
-      addr_cov.sample(i * 4);
+      sb.check(rd_data, "reg " & integer'image(ridx));
+      addr_cov.sample(ridx);
       txn_cov.sample(1);
-      -- Cross: which (write_addr, read_addr) pairs were exercised
-      addr_cov.sample_cross(i * 4, i * 4);
+
+      iter := iter + 1;
     end loop;
 
-    -- Coverage report
+    -- Coverage and correctness report
     addr_cov.report_coverage;
     txn_cov.report_coverage;
-    check_true(addr_cov.get_coverage = 100.0, "all register addresses accessed");
-    check_true(txn_cov.get_coverage = 100.0,  "both write and read transactions seen");
+    if now >= 3 ms then
+      print(WARNING, "axi_lite_tb: 3 ms timeout - uncovered: addr=" & addr_cov.get_uncovered &
+                     " txn=" & txn_cov.get_uncovered);
+    end if;
+    check_true(addr_cov.is_covered, "all register addresses accessed");
+    check_true(txn_cov.is_covered,  "both write and read transactions seen");
     sb.final_report;
     check_equal(sb.fail_count, 0, "no scoreboard failures");
-    print(INFO, "axi_lite_tb complete");
+    print(INFO, "axi_lite_tb: " & integer'image(iter) &
+                " iterations, finished at " & time'image(now));
     std.env.stop;
   end process;
 

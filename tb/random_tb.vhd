@@ -14,12 +14,14 @@ architecture sim of random_tb is
 begin
 
   stim : process
-    variable vi    : integer;
-    variable vslv  : std_logic_vector(63 downto 0);
-    variable vt    : time;
-    variable vaddr : std_logic_vector(7 downto 0);
-    variable voh   : std_logic_vector(7 downto 0);
-    variable ones  : integer;
+    variable vi     : integer;
+    variable vslv   : std_logic_vector(63 downto 0);
+    variable vt     : time;
+    variable vaddr  : std_logic_vector(7 downto 0);
+    variable voh    : std_logic_vector(7 downto 0);
+    variable ones   : integer;
+    variable s1, s2 : positive;
+    variable vi2    : integer;
   begin
     -- Reproducible sequence
     rng.seed(42, 7);
@@ -89,6 +91,47 @@ begin
       end loop;
       check_equal(ones, 1, "rand_onehot exactly one bit i=" & integer'image(i));
     end loop;
+
+    -- get_seed: save state, advance, restore and check sequence restarts identically
+    rng.get_seed(s1, s2);
+    vi  := rng.rand_int(0, 1000);
+    rng.seed(s1, s2);
+    vi2 := rng.rand_int(0, 1000);
+    check_equal(vi, vi2, "get_seed/restore reproduces same value");
+
+    -- rand_weighted: deterministic weight (1,0,0) must always return index 0
+    for i in 1 to 20 loop
+      vi := rng.rand_weighted((1, 0, 0));
+      check_equal(vi, 0, "rand_weighted all-weight-on-first i=" & integer'image(i));
+    end loop;
+
+    -- rand_weighted: (0,0,1) must always return index 2
+    for i in 1 to 20 loop
+      vi := rng.rand_weighted((0, 0, 1));
+      check_equal(vi, 2, "rand_weighted all-weight-on-last i=" & integer'image(i));
+    end loop;
+
+    -- rand_weighted: result must be a valid index for an even distribution
+    for i in 1 to 100 loop
+      vi := rng.rand_weighted((3, 3, 3, 3));
+      check_true(vi >= 0 and vi <= 3,
+                 "rand_weighted index in range i=" & integer'image(i));
+    end loop;
+
+    -- rand_gaussian: degenerate (stddev=0) returns integer(mean)
+    vi := rng.rand_gaussian(42.0, 0.0, 0, 100);
+    check_equal(vi, 42, "rand_gaussian stddev=0 returns mean");
+
+    -- rand_gaussian: all values clamped within [lo, hi]
+    for i in 1 to 200 loop
+      vi := rng.rand_gaussian(50.0, 20.0, 0, 100);
+      check_true(vi >= 0 and vi <= 100,
+                 "rand_gaussian clamped to [0,100] i=" & integer'image(i));
+    end loop;
+
+    -- rand_gaussian: tight clamp forces a specific value
+    vi := rng.rand_gaussian(5.0, 0.0, 5, 5);
+    check_equal(vi, 5, "rand_gaussian degenerate range");
 
     print(INFO, "random_tb complete");
     std.env.stop;

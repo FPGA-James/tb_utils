@@ -38,6 +38,20 @@ package random_pkg is
     -- Random one-hot vector: exactly one bit set at a random position.
     impure function rand_onehot(width : positive) return std_logic_vector;
 
+    -- Get current seed state. Save before a test and print on failure to enable replay.
+    procedure get_seed(variable s1 : out positive; variable s2 : out positive);
+
+    -- Weighted random index: returns 0 to weights'length-1 with probability
+    -- proportional to each weight. At least one weight must be > 0.
+    impure function rand_weighted(weights : integer_vector) return integer;
+
+    -- Gaussian (normal) random integer clamped to [lo, hi].
+    -- Uses Box-Muller transform. stddev = 0.0 returns integer(mean).
+    impure function rand_gaussian(mean   : real;
+                                  stddev : real;
+                                  lo     : integer;
+                                  hi     : integer) return integer;
+
   end protected rand_t;
 
 end package random_pkg;
@@ -154,6 +168,65 @@ package body random_pkg is
       bit_pos        := rand_int(0, width - 1);
       result(bit_pos) := '1';
       return result;
+    end function;
+
+    -- ------------------------------------------------------------------
+
+    procedure get_seed(variable s1 : out positive; variable s2 : out positive) is
+    begin
+      s1 := v_s1;
+      s2 := v_s2;
+    end procedure;
+
+    -- ------------------------------------------------------------------
+
+    impure function rand_weighted(weights : integer_vector) return integer is
+      variable total   : integer := 0;
+      variable pick    : integer;
+      variable running : integer := 0;
+    begin
+      for i in weights'range loop
+        total := total + weights(i);
+      end loop;
+      if total <= 0 then
+        print(FATAL, "[random.rand_weighted] all weights are zero");
+        return 0;
+      end if;
+      pick := rand_int(0, total - 1);
+      for i in weights'range loop
+        running := running + weights(i);
+        if pick < running then
+          return i - weights'low;  -- normalise to 0-based position
+        end if;
+      end loop;
+      return weights'length - 1;  -- unreachable; satisfies return requirement
+    end function;
+
+    -- ------------------------------------------------------------------
+
+    impure function rand_gaussian(mean   : real;
+                                  stddev : real;
+                                  lo     : integer;
+                                  hi     : integer) return integer is
+      variable u1, u2  : real;
+      variable z       : real;
+      variable result  : real;
+      variable clamped : integer;
+    begin
+      if stddev = 0.0 then
+        clamped := integer(mean);
+      else
+        -- Box-Muller: u1 must be > 0 to avoid log(0)
+        loop uniform(v_s1, v_s2, u1); exit when u1 > 0.0; end loop;
+        uniform(v_s1, v_s2, u2);
+        z      := sqrt(-2.0 * log(u1)) * cos(2.0 * MATH_PI * u2);
+        result := mean + stddev * z;
+        if    result < real(lo) then clamped := lo;
+        elsif result > real(hi) then clamped := hi;
+        else                         clamped := integer(result);
+        end if;
+      end if;
+      return clamped;
     end function;
 
   end protected body rand_t;

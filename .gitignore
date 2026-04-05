@@ -7,3 +7,4 @@ work/
 *.vcd
 *.ghw
 *.fst
+/.DS_Store

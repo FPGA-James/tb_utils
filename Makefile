@@ -1,4 +1,7 @@
 # tb_utils Makefile — requires GHDL on PATH
+SHELL        := bash
+.SHELLFLAGS  := -o pipefail -c
+
 GHDL      := ghdl
 GHDLFLAGS := --std=08
 LIB       := tb_utils
@@ -11,15 +14,19 @@ SRC := \
   src/axis_pkg.vhd \
   src/axi_lite_pkg.vhd \
   src/coverage_pkg.vhd \
-  src/random_pkg.vhd
+  src/random_pkg.vhd \
+  src/flow_ctrl_pkg.vhd \
+  src/sequence_pkg.vhd
 
 TBS := \
   tb/tb_core_tb.vhd \
   tb/axis_tb.vhd \
   tb/axi_lite_tb.vhd \
-  tb/random_tb.vhd
+  tb/coverage_tb.vhd \
+  tb/random_tb.vhd \
+  tb/crv_axi_lite_tb.vhd
 
-TB_TOPS := tb_core_tb axis_tb axi_lite_tb random_tb
+TB_TOPS := tb_core_tb axis_tb axi_lite_tb coverage_tb random_tb crv_axi_lite_tb
 
 .PHONY: all compile test run clean
 
@@ -32,20 +39,23 @@ $(WORKDIR)/.compiled: $(SRC) $(TBS)
 	$(GHDL) -i $(GHDLFLAGS) --work=$(LIB) --workdir=$(WORKDIR) $(SRC)
 	$(GHDL) -i $(GHDLFLAGS) --work=$(LIB) --workdir=$(WORKDIR) $(TBS)
 	@for tb in $(TB_TOPS); do \
-	  $(GHDL) -m $(GHDLFLAGS) --work=$(LIB) --workdir=$(WORKDIR) $$tb; \
+	  $(GHDL) -m $(GHDLFLAGS) --work=$(LIB) --workdir=$(WORKDIR) -o $(WORKDIR)/$$tb $$tb; \
 	done
 	touch $@
 
+# Run all testbenches; output shown on terminal and saved to work/<tb>.log
 test: compile
 	@for tb in $(TB_TOPS); do \
 	  echo "--- Running $$tb ---"; \
-	  $(GHDL) -r $(GHDLFLAGS) --work=$(LIB) --workdir=$(WORKDIR) $$tb || exit 1; \
+	  $(WORKDIR)/$$tb 2>&1 | tee $(WORKDIR)/$$tb.log || exit 1; \
 	done
 	@echo "=== All tests passed ==="
 
 # Run a single testbench: make run TB=axis_tb
+# Output shown on terminal and saved to work/<TB>.log
 run: compile
-	$(GHDL) -r $(GHDLFLAGS) --work=$(LIB) --workdir=$(WORKDIR) $(TB)
+	$(WORKDIR)/$(TB) 2>&1 | tee $(WORKDIR)/$(TB).log
 
 clean:
 	rm -rf $(WORKDIR)
+	rm -f $(TB_TOPS)
