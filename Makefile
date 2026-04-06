@@ -9,6 +9,7 @@ WORKDIR   := work
 
 SRC := \
   src/tb_utils_pkg.vhd \
+  src/tb_file_pkg.vhd \
   src/tb_assert_pkg.vhd \
   src/tb_scoreboard_pkg.vhd \
   src/axis_pkg.vhd \
@@ -24,9 +25,10 @@ TBS := \
   tb/axi_lite_tb.vhd \
   tb/coverage_tb.vhd \
   tb/random_tb.vhd \
-  tb/crv_axi_lite_tb.vhd
+  tb/crv_axi_lite_tb.vhd \
+  tb/file_tb.vhd
 
-TB_TOPS := tb_core_tb axis_tb axi_lite_tb coverage_tb random_tb crv_axi_lite_tb
+TB_TOPS := tb_core_tb axis_tb axi_lite_tb coverage_tb random_tb crv_axi_lite_tb file_tb
 
 .PHONY: all compile test run clean
 
