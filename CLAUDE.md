@@ -31,8 +31,8 @@ All library packages live in `src/`. Each package is a single `.vhd` file compil
 Bus widths are unconstrained in procedure formals (`std_logic_vector` without range); the actual width is inferred from the signal passed at the call site — no generics or package instantiation needed.
 
 Compilation order (dependencies):
-1. `tb_pkg` (no deps)
-2. `tb_assert_pkg` (uses `tb_pkg` for `print`)
+1. `tb_utils_pkg` (no deps)
+2. `tb_assert_pkg` (uses `tb_utils_pkg` for `print`)
 3. `tb_scoreboard_pkg` (uses `tb_assert_pkg`)
-4. `axis_pkg` (uses `tb_pkg`)
-5. `axi_lite_pkg` (uses `tb_pkg`)
+4. `axis_pkg` (uses `tb_utils_pkg`)
+5. `axi_lite_pkg` (uses `tb_utils_pkg`)

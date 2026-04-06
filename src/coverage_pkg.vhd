@@ -20,7 +20,7 @@ use ieee.numeric_std.all;
 use ieee.math_real.all;
 use std.textio.all;
 library tb_utils;
-use tb_utils.tb_pkg.all;
+use tb_utils.tb_utils_pkg.all;
 
 package coverage_pkg is
 

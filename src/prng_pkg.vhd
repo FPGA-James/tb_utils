@@ -3,9 +3,9 @@ use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
 use ieee.math_real.all;
 library tb_utils;
-use tb_utils.tb_pkg.all;
+use tb_utils.tb_utils_pkg.all;
 
-package random_pkg is
+package prng_pkg is
 
   type rand_t is protected
 
@@ -54,10 +54,10 @@ package random_pkg is
 
   end protected rand_t;
 
-end package random_pkg;
+end package prng_pkg;
 
 
-package body random_pkg is
+package body prng_pkg is
 
   type rand_t is protected body
 
@@ -231,4 +231,4 @@ package body random_pkg is
 
   end protected body rand_t;
 
-end package body random_pkg;
+end package body prng_pkg;

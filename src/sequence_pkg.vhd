@@ -26,9 +26,9 @@
 
 package sequence_pkg is
 	type t_sequence is protected
-    	procedure set_mode(mode : string);
+    	procedure set_mode(m : string);
     	procedure set_range(lo, hi : integer);
-    	procedure set_width(width : natural);
+    	procedure set_width(w : natural);
     	impure function next_val return integer;
     	procedure reset;
 	end protected;

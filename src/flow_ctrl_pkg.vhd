@@ -4,12 +4,12 @@ use ieee.numeric_std.all;
 use ieee.math_real.all;
 use std.textio.all;
 library tb_utils;
-use tb_utils.tb_pkg.all;
+use tb_utils.tb_utils_pkg.all;
 
 package flow_ctrl_pkg is
 
 type t_flow_controller is protected
-    procedure set_mode(mode : string);
+    procedure set_mode(m : string);
     procedure set_throttle(percent : natural);
     procedure set_pattern(pat : std_logic_vector);
     impure function ready_this_cycle return boolean;

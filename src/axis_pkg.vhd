@@ -2,7 +2,7 @@ library ieee;
 use ieee.std_logic_1164.all;
 use std.textio.all;
 library tb_utils;
-use tb_utils.tb_pkg.all;
+use tb_utils.tb_utils_pkg.all;
 
 package axis_pkg is
 

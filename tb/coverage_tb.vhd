@@ -1,7 +1,7 @@
 library ieee;
 use ieee.std_logic_1164.all;
 library tb_utils;
-use tb_utils.tb_pkg.all;
+use tb_utils.tb_utils_pkg.all;
 use tb_utils.tb_assert_pkg.all;
 use tb_utils.coverage_pkg.all;
 

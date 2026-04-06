@@ -8,13 +8,13 @@ LIB       := tb_utils
 WORKDIR   := work
 
 SRC := \
-  src/tb_pkg.vhd \
+  src/tb_utils_pkg.vhd \
   src/tb_assert_pkg.vhd \
   src/tb_scoreboard_pkg.vhd \
   src/axis_pkg.vhd \
   src/axi_lite_pkg.vhd \
   src/coverage_pkg.vhd \
-  src/random_pkg.vhd \
+  src/prng_pkg.vhd \
   src/flow_ctrl_pkg.vhd \
   src/sequence_pkg.vhd
 
@@ -44,17 +44,19 @@ $(WORKDIR)/.compiled: $(SRC) $(TBS)
 	touch $@
 
 # Run all testbenches; output shown on terminal and saved to work/<tb>.log
+# Waveforms saved to work/<tb>.ghw (open with GTKWave)
 test: compile
 	@for tb in $(TB_TOPS); do \
 	  echo "--- Running $$tb ---"; \
-	  $(WORKDIR)/$$tb 2>&1 | tee $(WORKDIR)/$$tb.log || exit 1; \
+	  $(WORKDIR)/$$tb --wave=$(WORKDIR)/$$tb.ghw 2>&1 | tee $(WORKDIR)/$$tb.log || exit 1; \
 	done
 	@echo "=== All tests passed ==="
 
 # Run a single testbench: make run TB=axis_tb
 # Output shown on terminal and saved to work/<TB>.log
+# Waveform saved to work/<TB>.ghw (open with GTKWave)
 run: compile
-	$(WORKDIR)/$(TB) 2>&1 | tee $(WORKDIR)/$(TB).log
+	$(WORKDIR)/$(TB) --wave=$(WORKDIR)/$(TB).ghw 2>&1 | tee $(WORKDIR)/$(TB).log
 
 clean:
 	rm -rf $(WORKDIR)

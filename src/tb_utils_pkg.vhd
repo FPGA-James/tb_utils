@@ -3,7 +3,7 @@ use ieee.std_logic_1164.all;
 library std;
 use std.textio.all;
 
-package tb_pkg is
+package tb_utils_pkg is
 
   type log_level_t is (DEBUG, INFO, WARNING, ERROR, FATAL);
 
@@ -32,9 +32,9 @@ package tb_pkg is
     constant duration     : in  time      := 100 ns
   );
 
-end package tb_pkg;
+end package tb_utils_pkg;
 
-package body tb_pkg is
+package body tb_utils_pkg is
 
   procedure print(constant level : in log_level_t; constant msg : in string) is
     variable l : line;
@@ -72,4 +72,4 @@ package body tb_pkg is
     wait for 0 ns;
   end procedure;
 
-end package body tb_pkg;
+end package body tb_utils_pkg;
