@@ -46,7 +46,7 @@ package body tb_file_pkg is
       readline(fa, la);
       readline(fb, lb);
       line_num := line_num + 1;
-      next when la'length = 0 and lb'length = 0;  -- skip paired blank lines
+      next when la'length = 0 and lb'length = 0;  -- skip only when both blank; one blank vs one non-blank is reported as a mismatch
       if la.all /= lb.all then
         mismatches := mismatches + 1;
         print(ERROR, "[file_compare] line " & integer'image(line_num) &

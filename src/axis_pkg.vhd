@@ -54,6 +54,7 @@ package axis_pkg is
   );
 
   -- Master: drive one beat with tuser. Mirrors axis_write but adds tuser/user formals.
+  -- Note: defaults omitted to avoid GHDL overload ambiguity with the file-replay overload
   procedure axis_write(
     signal   clk    : in  std_logic;
     signal   tvalid : out std_logic;
