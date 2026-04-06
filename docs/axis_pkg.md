@@ -13,7 +13,7 @@ AXI-Stream bus-functional models (BFMs): master writer, slave reader, passive mo
 | Depends on | `tb_utils_pkg` |
 | VHDL standard | 2008 |
 
-Supported signals: `tvalid`, `tready`, `tdata`, `tlast`. Optional sideband signals (`tkeep`, `tstrb`, `tid`, `tuser`) are not driven — tie them off or manage separately.
+Supported signals: `tvalid`, `tready`, `tdata`, `tlast`, `tuser`. Other optional sideband signals (`tkeep`, `tstrb`, `tid`) are not driven — tie them off or manage separately.
 
 ---
 
@@ -148,4 +148,107 @@ loop
     axis_monitor(clk, tvalid, tready, tdata, tlast, mon_data, mon_last);
     print(DEBUG, "monitor saw: 0x" & to_hstring(mon_data));
 end loop;
+```
+
+---
+
+## TUSER variants (video / UG934 format)
+
+The following overloads extend the write/read procedures with a `tuser` signal for AXI4-Stream Video (UG934). `tuser = '1'` marks the first beat of a frame (start-of-frame). File format is `<hex_tdata> <tuser> <tlast>` per line.
+
+### `axis_write` — single beat with TUSER
+
+```vhdl
+procedure axis_write(
+    signal   clk    : in  std_logic;
+    signal   tvalid : out std_logic;
+    signal   tready : in  std_logic;
+    signal   tdata  : out std_logic_vector;
+    signal   tlast  : out std_logic;
+    signal   tuser  : out std_logic;
+    constant data   : in  std_logic_vector;
+    constant last   : in  boolean;
+    constant user   : in  std_logic
+);
+```
+
+Same handshake as the non-TUSER variant. `last` and `user` have no defaults — supply both explicitly.
+
+> **Note:** Defaults are omitted to avoid GHDL overload ambiguity with the file-replay overload below.
+
+**Example**
+
+```vhdl
+-- Start-of-frame beat
+axis_write(clk, tvalid, tready, tdata, tlast, tuser, x"FF0000", false, '1');
+-- Mid-frame beat
+axis_write(clk, tvalid, tready, tdata, tlast, tuser, x"00FF00", false, '0');
+```
+
+---
+
+### `axis_write` — file replay with TUSER
+
+```vhdl
+procedure axis_write(
+    signal   clk      : in  std_logic;
+    signal   tvalid   : out std_logic;
+    signal   tready   : in  std_logic;
+    signal   tdata    : out std_logic_vector;
+    signal   tlast    : out std_logic;
+    signal   tuser    : out std_logic;
+    constant filename : in  string
+);
+```
+
+Reads a stimulus file and drives one beat per line. File format (one beat per line):
+
+```
+FF0000 1 0
+00FF00 0 0
+0000FF 0 0
+A1B2C3 0 1
+```
+
+Each line: `<hex_tdata> <tuser> <tlast>`. Blank and malformed lines are skipped. Each beat is logged at INFO level before driving.
+
+**Example**
+
+```vhdl
+axis_write(clk, tvalid, tready, tdata, tlast, tuser, "tb/frame_in.txt");
+```
+
+---
+
+### `axis_read_to_file`
+
+```vhdl
+procedure axis_read_to_file(
+    signal   clk       : in  std_logic;
+    signal   tvalid    : in  std_logic;
+    signal   tready    : out std_logic;
+    signal   tdata     : in  std_logic_vector;
+    signal   tlast     : in  std_logic;
+    signal   tuser     : in  std_logic;
+    constant filename  : in  string;
+    constant num_beats : in  positive
+);
+```
+
+Slave BFM. Captures exactly `num_beats` beats from the bus and writes each to `filename` in `<hex_tdata> <tuser> <tlast>` format. The caller determines `num_beats` from the image dimensions (e.g. `width * height`). Logs a summary at INFO level after capturing.
+
+**File extension:** `.txt`, `.hex`, and `.mem` are all valid.
+
+**Limitations**
+- `tready` pulses low briefly between beats (one delta cycle). For pipelined sources that present the next beat without a gap, this causes back-pressure on every beat. Suitable for frame-accurate but not throughput-critical capture.
+
+**Example**
+
+```vhdl
+-- Capture a 1920x1080 frame
+axis_read_to_file(clk, tvalid, tready, tdata, tlast, tuser,
+                  "work/frame_out.txt", 1920*1080);
+
+-- Compare with golden reference
+file_compare("tb/frame_in.txt", "work/frame_out.txt");
 ```
