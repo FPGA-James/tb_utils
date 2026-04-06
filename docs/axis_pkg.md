@@ -62,6 +62,7 @@ procedure axis_write(
     signal   tready   : in  std_logic;
     signal   tdata    : out std_logic_vector;
     signal   tlast    : out std_logic;
+    signal   tuser    : out std_logic;
     constant filename : in  string
 );
 ```
@@ -69,12 +70,12 @@ procedure axis_write(
 Reads a stimulus file and replays each line as one beat. File format (one beat per line):
 
 ```
-DEADBEEF 0
-CAFEBABE 0
-12345678 1
+DEADBEEF 0 0
+CAFEBABE 0 0
+12345678 0 1
 ```
 
-Each line: `<hex_data> <last_flag>` where `last_flag` is `0` (not last) or `1` (last). Blank lines and malformed lines are skipped. Each beat is logged at DEBUG level.
+Each line: `<hex_tdata> <tuser> <tlast>`. `tuser = 1` marks start-of-frame (AXI4-Stream Video). Blank lines and malformed lines are skipped. Each beat is logged at INFO level before driving.
 
 **Limitations**
 - `tdata` width must be a multiple of 4 bits (hex parsing via `hread`).
@@ -83,7 +84,7 @@ Each line: `<hex_data> <last_flag>` where `last_flag` is `0` (not last) or `1` (
 **Example**
 
 ```vhdl
-axis_write(clk, tvalid, tready, tdata, tlast, "stimulus/packet0.txt");
+axis_write(clk, tvalid, tready, tdata, tlast, tuser, "stimulus/frame0.txt");
 ```
 
 ---
