@@ -1,7 +1,7 @@
 library ieee;
 use ieee.std_logic_1164.all;
 library tb_utils;
-use tb_utils.tb_pkg.all;
+use tb_utils.tb_utils_pkg.all;
 use tb_utils.tb_assert_pkg.all;
 use tb_utils.tb_scoreboard_pkg.all;
 
@@ -25,7 +25,7 @@ begin
     variable rd : std_logic_vector(7 downto 0);
   begin
     -- Test reset_seq
-    reset_seq(rst, active_level => '1', duration => 50 ns);
+    reset_seq(rst, clk, active_level => '1', cycles => 5);
     check_equal(rst, '0', "rst deasserted after reset_seq");
 
     -- Test print at each severity
