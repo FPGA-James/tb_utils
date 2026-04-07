@@ -8,3 +8,6 @@ work/
 *.ghw
 *.fst
 /.DS_Store
+
+# Git worktrees
+.worktrees/
