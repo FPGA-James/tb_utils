@@ -114,23 +114,24 @@ end process;
 ```vhdl
 procedure reset_seq(
     signal   rst          : out std_logic;
+    signal   clk          : in  std_logic;
     constant active_level : in  std_logic := '1';
-    constant duration     : in  time      := 100 ns
+    constant cycles       : in  positive  := 8
 );
 ```
 
-Asserts `rst` to `active_level` for `duration`, then deasserts it. A `wait for 0 ns` after deassertion ensures the signal propagates before the calling process continues.
+Asserts `rst` to `active_level` for `cycles` rising edges of `clk`, then deasserts it. A `wait for 0 ns` after deassertion ensures the signal propagates before the calling process continues.
 
 **Limitations**
-- Blocking — the calling process stalls for `duration`.
-- Does not wait for a clock edge; add `wait until rising_edge(clk)` before/after if synchronous reset alignment is needed.
+- Blocking — the calling process stalls until all clock cycles complete.
+- `clk` must already be running (driven by `clk_gen` or similar) before `reset_seq` is called.
 
 **Example**
 
 ```vhdl
--- Active-high reset for 50 ns
-reset_seq(rst, active_level => '1', duration => 50 ns);
+-- Active-high reset for 5 clock cycles
+reset_seq(rst, clk, active_level => '1', cycles => 5);
 
--- Active-low reset with defaults (active_level='1', duration=100 ns)
-reset_seq(rst_n, active_level => '0');
+-- Active-low reset with defaults (active_level='1', cycles=8)
+reset_seq(rst_n, clk, active_level => '0');
 ```

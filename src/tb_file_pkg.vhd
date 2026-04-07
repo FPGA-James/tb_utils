@@ -6,8 +6,8 @@ use tb_utils.tb_utils_pkg.all;
 
 package tb_file_pkg is
 
-  -- Compare two text files line-by-line.
-  -- Reports all mismatches via print(ERROR,...). Prints PASS/FAIL summary at end.
+  -- Compare two text files line by line. Reports every mismatch; prints PASS or FAIL summary.
+  -- Blank lines are skipped only when both files have a blank line at the same position.
   procedure file_compare(
     constant filename_a : in string;
     constant filename_b : in string
@@ -21,23 +21,20 @@ package body tb_file_pkg is
     constant filename_a : in string;
     constant filename_b : in string
   ) is
-    file     fa         : text;
-    file     fb         : text;
-    variable la         : line;
-    variable lb         : line;
-    variable fsa        : file_open_status;
-    variable fsb        : file_open_status;
+    file     fa, fb     : text;
+    variable fsa, fsb   : file_open_status;
+    variable la, lb     : line;
     variable mismatches : integer := 0;
     variable line_num   : integer := 0;
   begin
     file_open(fsa, fa, filename_a, read_mode);
     if fsa /= open_ok then
-      print(ERROR, "[file_compare] cannot open: " & filename_a);
+      print(ERROR, "file_compare: cannot open " & filename_a);
       return;
     end if;
     file_open(fsb, fb, filename_b, read_mode);
     if fsb /= open_ok then
-      print(ERROR, "[file_compare] cannot open: " & filename_b);
+      print(ERROR, "file_compare: cannot open " & filename_b);
       file_close(fa);
       return;
     end if;
@@ -46,28 +43,29 @@ package body tb_file_pkg is
       readline(fa, la);
       readline(fb, lb);
       line_num := line_num + 1;
-      next when la'length = 0 and lb'length = 0;  -- skip only when both blank; one blank vs one non-blank is reported as a mismatch
+      -- skip only when both lines are blank simultaneously
+      next when la'length = 0 and lb'length = 0;
       if la.all /= lb.all then
+        print(ERROR, "file_compare: line " & integer'image(line_num) &
+              ": a=" & la.all & " b=" & lb.all);
         mismatches := mismatches + 1;
-        print(ERROR, "[file_compare] line " & integer'image(line_num) &
-                     ": a=" & la.all & " b=" & lb.all);
       end if;
     end loop;
 
     if not endfile(fa) or not endfile(fb) then
+      print(ERROR, "file_compare: files have different line counts");
       mismatches := mismatches + 1;
-      print(ERROR, "[file_compare] files have different line counts");
     end if;
 
     file_close(fa);
     file_close(fb);
 
     if mismatches = 0 then
-      print(INFO,  "[file_compare] PASS -- files match (" &
-                   integer'image(line_num) & " lines)");
+      print(INFO, "file_compare: PASS -- files match (" &
+            integer'image(line_num) & " lines)");
     else
-      print(ERROR, "[file_compare] FAIL -- " &
-                   integer'image(mismatches) & " mismatches");
+      print(ERROR, "file_compare: FAIL -- " &
+            integer'image(mismatches) & " mismatches");
     end if;
   end procedure;
 

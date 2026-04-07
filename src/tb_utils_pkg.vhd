@@ -25,11 +25,12 @@ package tb_utils_pkg is
     constant period : in    time
   );
 
-  -- Assert reset (active_level) for duration, then deassert.
+  -- Assert reset (active_level) for cycles rising edges of clk, then deassert.
   procedure reset_seq(
     signal   rst          : out std_logic;
+    signal   clk          : in  std_logic;
     constant active_level : in  std_logic := '1';
-    constant duration     : in  time      := 100 ns
+    constant cycles       : in  positive  := 8
   );
 
 end package tb_utils_pkg;
@@ -62,12 +63,15 @@ package body tb_utils_pkg is
 
   procedure reset_seq(
     signal   rst          : out std_logic;
+    signal   clk          : in  std_logic;
     constant active_level : in  std_logic := '1';
-    constant duration     : in  time      := 100 ns
+    constant cycles       : in  positive  := 8
   ) is
   begin
     rst <= active_level;
-    wait for duration;
+    for i in 1 to cycles loop
+      wait until rising_edge(clk);
+    end loop;
     rst <= not active_level;
     wait for 0 ns;
   end procedure;

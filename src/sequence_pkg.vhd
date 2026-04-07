@@ -30,6 +30,7 @@ package sequence_pkg is
     	procedure set_range(lo, hi : integer);
     	procedure set_width(w : natural);
     	impure function next_val return integer;
+    	impure function get_length return positive;
     	procedure reset;
 	end protected;
 end package sequence_pkg;
@@ -79,6 +80,19 @@ type t_sequence is protected body
             toggle  := not toggle;
         end if;
         return ret;
+    end function;
+
+    impure function get_length return positive is
+    begin
+        if mode = "WALK1 " or mode = "WALK0 " then
+            return width;
+        elsif mode = "ALT   " then
+            return 2;
+        elsif mode = "CONST " then
+            return 1;
+        else  -- INC, DEC
+            return hi_val - lo_val + 1;
+        end if;
     end function;
 
     procedure reset is

@@ -113,6 +113,44 @@ end loop;
 
 ---
 
+### `get_length`
+
+```vhdl
+impure function get_length return positive;
+```
+
+Returns the number of values in one full pass of the current sequence configuration. Useful for driving loop bounds without hardcoding them.
+
+| Mode | Returns |
+|------|---------|
+| `INC` / `DEC` | `hi - lo + 1` |
+| `WALK1` / `WALK0` | `width` |
+| `ALT` | `2` |
+| `CONST` | `1` |
+
+**Example**
+
+```vhdl
+seq.set_mode("INC");
+seq.set_range(0, 255);
+
+for i in 0 to seq.get_length - 1 loop
+    addr <= std_logic_vector(to_unsigned(seq.next_val, 8));
+    wait until rising_edge(clk);
+end loop;
+
+-- Walking-ones: loop driven by width, not a magic constant
+seq.set_mode("WALK1");
+seq.set_width(8);
+
+for i in 0 to seq.get_length - 1 loop
+    data_in <= std_logic_vector(to_unsigned(seq.next_val, 8));
+    wait until rising_edge(clk);
+end loop;
+```
+
+---
+
 ### `reset`
 
 ```vhdl

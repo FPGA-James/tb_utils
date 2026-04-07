@@ -29,18 +29,6 @@ package axis_pkg is
     variable last   : out boolean
   );
 
-  -- Replay beats from a text file. Each line: "<hex_tdata> <0|1>"
-  -- where 1 means tlast. Blank and malformed lines are skipped.
-  -- Prints each beat before driving it.
-  procedure axis_write(
-    signal   clk      : in  std_logic;
-    signal   tvalid   : out std_logic;
-    signal   tready   : in  std_logic;
-    signal   tdata    : out std_logic_vector;
-    signal   tlast    : out std_logic;
-    constant filename : in  string
-  );
-
   -- Passive monitor: waits for a valid beat without asserting tready.
   -- Used to snoop traffic non-intrusively.
   procedure axis_monitor(
@@ -53,8 +41,8 @@ package axis_pkg is
     variable last   : out boolean
   );
 
-  -- Master: drive one beat with tuser. Mirrors axis_write but adds tuser/user formals.
-  -- Note: defaults omitted to avoid GHDL overload ambiguity with the file-replay overload
+  -- Master: drive one beat with tuser (AXI4-Stream Video / UG934).
+  -- Note: defaults omitted to avoid GHDL overload ambiguity with the file-replay overload.
   procedure axis_write(
     signal   clk    : in  std_logic;
     signal   tvalid : out std_logic;
@@ -67,8 +55,10 @@ package axis_pkg is
     constant user   : in  std_logic
   );
 
-  -- Replay beats from a file with tuser. Each line: "<hex_tdata> <tuser> <tlast>"
-  -- Blank and malformed lines are skipped. Prints each beat before driving it.
+  -- Master file-replay with tuser: reads stimulus from file and drives each line as one beat.
+  -- File format per line: <hex_tdata> <tuser_int> <tlast_int>
+  -- tuser=1 marks start-of-frame (UG934); tlast=1 marks end-of-scan-line.
+  -- Blank and malformed lines are skipped.
   procedure axis_write(
     signal   clk      : in  std_logic;
     signal   tvalid   : out std_logic;
@@ -79,7 +69,8 @@ package axis_pkg is
     constant filename : in  string
   );
 
-  -- Capture num_beats beats to a file. Each captured line: "<hex_tdata> <tuser> <tlast>"
+  -- Slave: capture num_beats beats to file in <hex_tdata> <tuser> <tlast> format.
+  -- Asserts tready for each beat, captures on handshake, writes one line per beat.
   procedure axis_read_to_file(
     signal   clk       : in  std_logic;
     signal   tvalid    : in  std_logic;
@@ -147,39 +138,6 @@ package body axis_pkg is
   end procedure;
 
   procedure axis_write(
-    signal   clk      : in  std_logic;
-    signal   tvalid   : out std_logic;
-    signal   tready   : in  std_logic;
-    signal   tdata    : out std_logic_vector;
-    signal   tlast    : out std_logic;
-    constant filename : in  string
-  ) is
-    file     f        : text;
-    variable l        : line;
-    variable v        : std_logic_vector(tdata'length-1 downto 0);
-    variable last_int : integer;
-    variable good     : boolean;
-    variable fstatus  : file_open_status;
-  begin
-    file_open(fstatus, f, filename, read_mode);
-    if fstatus /= open_ok then
-      print(FATAL, "[axis.axis_write] cannot open file: " & filename);
-      return;
-    end if;
-    while not endfile(f) loop
-      readline(f, l);
-      next when l'length = 0;
-      hread(l, v, good);
-      next when not good;
-      read(l, last_int);
-      print(INFO, "[axis.axis_write] data=" & to_hstring(v) &
-                  " last=" & integer'image(last_int));
-      axis_write(clk, tvalid, tready, tdata, tlast, v, last_int = 1);
-    end loop;
-    file_close(f);
-  end procedure;
-
-  procedure axis_write(
     signal   clk    : in  std_logic;
     signal   tvalid : out std_logic;
     signal   tready : in  std_logic;
@@ -212,19 +170,17 @@ package body axis_pkg is
     constant filename : in  string
   ) is
     file     f        : text;
+    variable fstatus  : file_open_status;
     variable l        : line;
-    variable v        : std_logic_vector(tdata'length-1 downto 0);
+    variable v        : std_logic_vector(tdata'range);
     variable user_int : integer;
     variable last_int : integer;
-    variable user_sl  : std_logic;
     variable good     : boolean;
-    variable fstatus  : file_open_status;
+    variable user_sl  : std_logic;
   begin
     file_open(fstatus, f, filename, read_mode);
-    if fstatus /= open_ok then
-      print(FATAL, "[axis.axis_write] cannot open file: " & filename);
-      return;
-    end if;
+    assert fstatus = open_ok
+      report "axis_write: cannot open file " & filename severity failure;
     while not endfile(f) loop
       readline(f, l);
       next when l'length = 0;
@@ -235,11 +191,11 @@ package body axis_pkg is
       read(l, last_int, good);
       next when not good;
       user_sl := '1' when user_int /= 0 else '0';
-      print(INFO, "[axis.axis_write] data=" & to_hstring(v) &
-                  " tuser=" & integer'image(user_int) &
-                  " last=" & integer'image(last_int));
+      print(INFO, "axis_write: " & to_hstring(v) &
+            " tuser=" & integer'image(user_int) &
+            " tlast=" & integer'image(last_int));
       axis_write(clk, tvalid, tready, tdata, tlast, tuser,
-                 v, last_int = 1, user_sl);
+                 v, last_int /= 0, user_sl);
     end loop;
     file_close(f);
   end procedure;
@@ -254,15 +210,13 @@ package body axis_pkg is
     constant filename  : in  string;
     constant num_beats : in  positive
   ) is
-    file     f       : text;
-    variable l       : line;
+    file     f : text;
     variable fstatus : file_open_status;
+    variable l : line;
   begin
     file_open(fstatus, f, filename, write_mode);
-    if fstatus /= open_ok then
-      print(FATAL, "[axis.axis_read_to_file] cannot open file: " & filename);
-      return;
-    end if;
+    assert fstatus = open_ok
+      report "axis_read_to_file: cannot open file " & filename severity failure;
     for i in 1 to num_beats loop
       tready <= '1';
       wait until rising_edge(clk) and tvalid = '1';
@@ -275,8 +229,8 @@ package body axis_pkg is
       writeline(f, l);
     end loop;
     file_close(f);
-    print(INFO, "[axis.axis_read_to_file] captured " &
-                integer'image(num_beats) & " beats to " & filename);
+    print(INFO, "axis_read_to_file: captured " & integer'image(num_beats) &
+          " beats to " & filename);
   end procedure;
 
 end package body axis_pkg;

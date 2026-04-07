@@ -2,8 +2,8 @@
 
 A VHDL-2008 testbench utilities library. Simulator-agnostic (pure VHDL). Bus widths inferred at call site via unconstrained formals.
 
-## Phase 1 — Foundation + AXI ✓
-- `tb_utils_pkg` — `clk_gen`, `reset_seq`, `print` (INFO/WARNING/ERROR/FATAL + sim timestamp)
+## Phase 1 — Foundation + AXI (current)
+- `tb_pkg` — `clk_gen`, `reset_seq`, `print` (INFO/WARNING/ERROR/FATAL + sim timestamp)
 - `tb_assert_pkg` — `check_equal`, `check_true`, `check_stable`
 - `tb_scoreboard_pkg` — queue-based scoreboard protected type
 - `axis_pkg` — AXI-Stream: `axis_write`, `axis_read`, `axis_monitor`
@@ -15,11 +15,9 @@ A VHDL-2008 testbench utilities library. Simulator-agnostic (pure VHDL). Bus wid
 - `mem_model/axi4_mem.vhd` — generic AXI4 slave RAM
 - `mem_model/axi_lite_mem.vhd` — generic AXI-Lite slave RAM
 
-## Phase 3 — File I/O ✓
-- `tb_file_pkg` — `file_compare`: line-by-line file diff with PASS/FAIL reporting
-- `axis_pkg` — extended with `tuser` support: `axis_write` (single-beat + file-replay), `axis_read_to_file`
-- File format: `<hex_tdata> <tuser> <tlast>` per line — compatible with Xilinx UG934 video stimulus files
-- Enables stimulus-file-driven video testbenches: load frame → drive DUT → capture output → compare
+## Phase 3 — File I/O
+- `tb_file_pkg` — `read_hex_file`, `write_hex_file`, `read_csv`, `write_csv`
+- Enable data-heavy tests using stimulus files and golden reference comparison
 
 ## Phase 4 — Serial Protocols
 - `uart_pkg` — `uart_tx`, `uart_rx` (configurable baud, data bits, parity)

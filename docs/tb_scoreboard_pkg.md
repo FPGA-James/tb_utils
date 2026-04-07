@@ -1,6 +1,6 @@
 # tb_scoreboard_pkg
 
-Queue-based scoreboard for DUT output verification. The testbench pushes expected values on the stimulus side; the monitor or receiver side calls `check` with the actual value. Mismatches and queue errors are logged as `[error]`.
+Queue-based scoreboard for DUT output verification. The testbench pushes expected values on the stimulus side; the monitor or receiver side calls `check` with the actual value. Supports `std_logic_vector`, `integer`, `std_logic`, and `string`. Mismatches and queue errors are logged as `[error]`.
 
 ---
 
@@ -10,10 +10,10 @@ Queue-based scoreboard for DUT output verification. The testbench pushes expecte
 |------|-------------|
 | Library | `tb_utils` |
 | File | `src/tb_scoreboard_pkg.vhd` |
-| Depends on | `tb_utils_pkg`, `tb_assert_pkg` |
+| Depends on | `tb_utils_pkg` |
 | VHDL standard | 2008 |
 
-The scoreboard uses a singly-linked list internally (heap-allocated `access` type), so the queue depth is limited only by simulator memory. Each node stores up to 256 bits; for wider buses, widen the `slv_node_t.data` field.
+Expected values are serialised to strings internally. The queue is a singly-linked list (heap-allocated), so depth is limited only by simulator memory.
 
 ---
 
@@ -35,38 +35,54 @@ Declare as a shared variable so it is accessible from multiple concurrent proces
 
 ```vhdl
 procedure push(constant data : in std_logic_vector);
+procedure push(constant data : in integer);
+procedure push(constant data : in std_logic);
+procedure push(constant data : in string);
 ```
 
-Enqueues the expected value at the tail of the queue. Call this from the stimulus process immediately before or at the same simulation time as the corresponding DUT transaction is initiated.
+Enqueues the expected value at the tail of the queue. Call from the stimulus process before or at the same simulation time as the corresponding DUT transaction.
 
-**Limitations**
-- Maximum data width is 256 bits (field `data : std_logic_vector(255 downto 0)` in the node type). Widen if needed.
-
-**Example**
-
-```vhdl
-sb.push(x"DEADBEEF");
-axi_lite_write(..., x"DEADBEEF");
-```
+> **Note:** When passing bit-string or string literals, a type mark is required to resolve overload ambiguity:
+> ```vhdl
+> sb.push(std_logic_vector'(x"AA"));   -- not sb.push(x"AA")
+> sb.push(string'("hello"));           -- not sb.push("hello")
+> sb.push(42);                         -- integer: unambiguous
+> sb.push('1');                        -- std_logic: unambiguous
+> ```
 
 ---
 
 ### `check`
 
 ```vhdl
-procedure check(
-    constant actual : in std_logic_vector;
-    constant msg    : in string := ""
-);
+procedure check(constant actual : in std_logic_vector; constant msg : in string := "");
+procedure check(constant actual : in integer;          constant msg : in string := "");
+procedure check(constant actual : in std_logic;        constant msg : in string := "");
+procedure check(constant actual : in string;           constant msg : in string := "");
 ```
 
-Dequeues the head of the queue and compares it to `actual`. Logs PASS (DEBUG) or FAIL (ERROR). If the queue is empty when `check` is called, logs an error ("queue empty, unexpected data").
+Dequeues the head of the queue and compares it to `actual`. Logs PASS (DEBUG) or FAIL (ERROR). If the queue is empty, logs "queue empty, unexpected data".
+
+The same type-mark rule applies at call sites for SLV and string literals.
 
 **Example**
 
 ```vhdl
-axi_lite_read(..., rd_data);
-sb.check(rd_data, "reg 0 read-back");
+-- std_logic_vector
+sb.push(std_logic_vector'(x"DEADBEEF"));
+sb.check(std_logic_vector'(rx_data), "reg read-back");
+
+-- integer
+sb.push(42);
+sb.check(seq.next_val, "sequence value");
+
+-- std_logic
+sb.push('1');
+sb.check(dut_valid, "valid asserted");
+
+-- string
+sb.push(string'("OK"));
+sb.check(string'(status_msg), "status");
 ```
 
 ---
@@ -87,7 +103,7 @@ Prints a summary of total passes, failures, and any items left unchecked in the 
 ```
 
 **Limitations**
-- Does not stop the simulation on failure. Follow with `check_equal(sb.fail_count, 0, ...)` if a hard fail is needed.
+- Does not stop the simulation on failure. Follow with `check_equal(sb.fail_count, 0, ...)` if a hard stop is needed.
 
 ---
 
@@ -117,7 +133,7 @@ shared variable sb : scoreboard_t;
 
 -- Stimulus process
 for i in 0 to 3 loop
-    sb.push(expected_data(i));
+    sb.push(std_logic_vector'(expected_data(i)));
     axis_write(clk, tvalid, tready, tdata, tlast, expected_data(i));
 end loop;
 
