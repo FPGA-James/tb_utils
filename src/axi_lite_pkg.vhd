@@ -2,7 +2,7 @@ library ieee;
 use ieee.std_logic_1164.all;
 use std.textio.all;
 library tb_utils;
-use tb_utils.tb_pkg.all;
+use tb_utils.tb_utils_pkg.all;
 
 package axi_lite_pkg is
 
@@ -131,9 +131,8 @@ package body axi_lite_pkg is
 
     -- Wait for both channels to be accepted (may happen same or different cycles)
     wait until rising_edge(clk) and awready = '1';
-	print(DEBUG, "[axi_lite_bfm.axi_lite_read] AWADDR  = x'" & to_hstring(addr) & "'");
-	-- print(DEBUG, "[axi_lite_bfm.axi_lite_read] AWVALID = x'" & to_hstring(awvalid));
-	print(DEBUG, "[axi_lite_bfm.axi_lite_read] WDATA   = x'" & to_hstring(data)& "'");
+	print(DEBUG, "[axi_lite_bfm.axi_lite_read] AWADDR  = x'" & to_hstring(addr) & "'" & " , WDATA = x'" & to_hstring(data) & "'");
+	-- print(DEBUG, "[axi_lite_bfm.axi_lite_read] WDATA   = x'" & to_hstring(data)& "'");
 	-- print(DEBUG, "[axi_lite_bfm.axi_lite_read] AWVALID = x'" & to_hstring(awvalid));
 	-- print(DEBUG, "[axi_lite_bfm.axi_lite_read] WSTRB   = x'" & to_hstring(wstrb));
 	-- print(DEBUG, "[axi_lite_bfm.axi_lite_read] WVALID  = x'" & to_hstring(wvalid));

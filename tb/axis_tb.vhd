@@ -2,12 +2,12 @@ library ieee;
 use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
 library tb_utils;
-use tb_utils.tb_pkg.all;
+use tb_utils.tb_utils_pkg.all;
 use tb_utils.tb_assert_pkg.all;
 use tb_utils.tb_scoreboard_pkg.all;
 use tb_utils.axis_pkg.all;
 use tb_utils.coverage_pkg.all;
-use tb_utils.random_pkg.all;
+use tb_utils.prng_pkg.all;
 
 entity axis_tb is
 end entity axis_tb;

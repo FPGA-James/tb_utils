@@ -3,30 +3,55 @@ package:
   authors:
     - "FPGA-James"
 
-# ── External HDL dependencies ─────────────────────────────────────────────────
-# Run `make deps` to fetch these into deps/ via `bender vendor init`.
+dependencies: {}
 
-dependencies:
-  # hdl-modules: VHDL support library required by the hdl_registers AXI-Lite
-  # register file generator (axi_lite_pkg, register_file_pkg).
+# ── How to use this package in another project ────────────────────────────────
+#
+# In your project's Bender.yml add one of:
+#
+#   # Git (tag/branch/rev)
+#   dependencies:
+#     tb_utils:
+#       git: "https://github.com/your-org/tb_utils"
+#       rev: master
+#
+#   # Local path (monorepo / side-by-side checkout)
+#   dependencies:
+#     tb_utils:
+#       path: "../tb_utils"
+#
+# All sources are compiled into the `tb_utils` VHDL library.
+# In your testbench add:
+#
+#   library tb_utils;
+#   use tb_utils.tb_utils_pkg.all;       -- core: clk_gen, reset_seq, print
+#   use tb_utils.tb_assert_pkg.all;      -- check_equal, check_true, check_stable
+#   use tb_utils.tb_scoreboard_pkg.all;  -- scoreboard_t
+#   use tb_utils.axis_pkg.all;           -- AXI-Stream BFMs
+#   use tb_utils.axi_lite_pkg.all;       -- AXI-Lite BFMs
+#   use tb_utils.coverage_pkg.all;       -- t_coverage, rand_cov_point
+#   use tb_utils.prng_pkg.all;           -- rand_t
+#   use tb_utils.flow_ctrl_pkg.all;      -- t_flow_controller
+#   use tb_utils.sequence_pkg.all;       -- t_sequence
+#
+# ─────────────────────────────────────────────────────────────────────────────
 
 # ── Source file declarations ──────────────────────────────────────────────────
-# Targets:
-#   rtl_vhdl   — VHDL RTL sources (included for VHDL simulation and synthesis)
-#   rtl_sv     — SystemVerilog RTL sources
-#   gen_vhdl   — Generated VHDL register files (produced by `make regs`)
-#   tb_vhdl    — VHDL testbench sources (simulation only)
+# All packages are simulation-only (testbench utilities — not synthesisable RTL).
+# Self-test testbenches in tb/ are excluded; they are run via `make test`.
+#
+# Compilation order matters for VHDL: tb_utils_pkg has no deps and must come
+# first; everything else depends on it.
 
 sources:
-  # ── VHDL RTL ──────────────────────────────────────────────────────────────
-  - target: rtl_vhdl
+  - target: simulation
     files:
-      - src/axi_lite_pkg.vhd
-      - src/axis_pkg.vhd
-      - src/coverage_pkg.vhd
-      - src/flow_control_pkg.vhd
-      - src/random_pkg.vhd
-      - src/sequence_pkg.vhd
+      - src/tb_utils_pkg.vhd
       - src/tb_assert_pkg.vhd
-      - src/tb_pkg.vhd
       - src/tb_scoreboard_pkg.vhd
+      - src/axis_pkg.vhd
+      - src/axi_lite_pkg.vhd
+      - src/coverage_pkg.vhd
+      - src/prng_pkg.vhd
+      - src/flow_ctrl_pkg.vhd
+      - src/sequence_pkg.vhd
