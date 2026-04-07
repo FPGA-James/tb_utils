@@ -256,9 +256,31 @@ Total pixels in file: `cfg.width * cfg.height`.
 
 ## 6. Testbench Structure
 
-Self-test: `tb/mipi_tb.vhd` — loopbacks `mipi_packet_write` directly into `mipi_packet_check` with no DUT, verifying ECC, CRC-16, K-char framing, and pixel packing for all data types. Generates a synthetic ramp pixel file at the start of simulation.
+Self-test: `tb/mipi_tb.vhd` — loopbacks `mipi_packet_write` directly into `mipi_packet_check` with no DUT. Runs multiple frames sweeping all data types and all four VCs. Generates a synthetic ramp pixel file before each frame. Uses `tb_scoreboard_pkg` and `coverage_pkg`.
 
-Typical DUT testbench pattern:
+### 6.1 Scoreboard Usage
+
+A `scoreboard_t` is used at the testbench level — BFM procedures remain scoreboard-unaware. The self-test TB uses the **lower-level** `csi2_write_short` / `csi2_write_long` / `csi2_read_packet` procedures directly in loops (the same pattern as `axis_tb.vhd` with `axis_write` / `axis_read`):
+
+- **Writer process:** for each line — pack pixels, push packed bytes onto scoreboard, call `csi2_write_long`.
+- **Checker process:** call `csi2_read_packet` per packet; for each received long packet, pop expected bytes from scoreboard and compare.
+
+The high-level `mipi_packet_write` / `mipi_packet_check` procedures are used in DUT testbenches where scoreboard integration is not needed at line granularity.
+
+### 6.2 Coverage
+
+Four coverage groups:
+
+| Group           | Bins                                               | Purpose                                      |
+|-----------------|----------------------------------------------------|----------------------------------------------|
+| `data_type_cov` | One bin per data type (7 bins)                     | All pixel formats exercised                  |
+| `vc_cov`        | One bin per VC: 0, 1, 2, 3                         | All virtual channels exercised               |
+| `pixel_val_cov` | Value range bins over pixel bit width (8 bins)     | Pixel value space covered (ramp + random)    |
+| `frame_dim_cov` | Bins for small / medium / large frame widths       | Different line lengths exercised             |
+
+Simulation runs until all coverage groups are fully covered or a timeout is reached, consistent with the pattern in `axis_tb.vhd`.
+
+### 6.3 Typical DUT Testbench Pattern
 
 ```vhdl
 -- Same cfg and pixel file drives both processes
