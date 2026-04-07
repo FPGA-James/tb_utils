@@ -17,7 +17,9 @@ SRC := \
   src/coverage_pkg.vhd \
   src/prng_pkg.vhd \
   src/flow_ctrl_pkg.vhd \
-  src/sequence_pkg.vhd
+  src/sequence_pkg.vhd \
+  src/mipi_csi2_pkg.vhd \
+  src/mipi_frame_pkg.vhd
 
 TBS := \
   tb/tb_core_tb.vhd \
@@ -26,9 +28,10 @@ TBS := \
   tb/coverage_tb.vhd \
   tb/random_tb.vhd \
   tb/crv_axi_lite_tb.vhd \
-  tb/file_tb.vhd
+  tb/file_tb.vhd \
+  tb/mipi_tb.vhd
 
-TB_TOPS := tb_core_tb axis_tb axi_lite_tb coverage_tb random_tb crv_axi_lite_tb file_tb
+TB_TOPS := tb_core_tb axis_tb axi_lite_tb coverage_tb random_tb crv_axi_lite_tb file_tb mipi_tb
 
 .PHONY: all compile test run clean
 
