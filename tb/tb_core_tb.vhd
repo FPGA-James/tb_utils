@@ -47,12 +47,35 @@ begin
     check_equal(42, 42, "integer equal pass");
     check_equal(42, 99, "integer equal fail expected");
 
-    -- Test scoreboard
-    sb.push(x"AA");
-    sb.push(x"BB");
-    sb.check(x"AA", "scoreboard first");
-    sb.check(x"CC", "scoreboard mismatch expected");  -- expected fail
-    sb.check(x"BB", "scoreboard second");             -- pops BB, checks against remaining
+    -- Scoreboard: std_logic_vector (type mark required — x"" literals are ambiguous with string)
+    sb.push(std_logic_vector'(x"AA"));
+    sb.push(std_logic_vector'(x"BB"));
+    sb.check(std_logic_vector'(x"AA"), "scoreboard slv pass");
+    sb.check(std_logic_vector'(x"CC"), "scoreboard slv mismatch expected");  -- expected fail
+    sb.check(std_logic_vector'(x"BB"), "scoreboard slv second");
+    sb.final_report;
+
+    -- Scoreboard: integer
+    sb.push(42);
+    sb.push(100);
+    sb.check(42,  "scoreboard int pass");
+    sb.check(99,  "scoreboard int mismatch expected");    -- expected fail
+    sb.check(100, "scoreboard int second");
+    sb.final_report;
+
+    -- Scoreboard: std_logic
+    sb.push('1');
+    sb.push('0');
+    sb.check('1', "scoreboard sl pass");
+    sb.check('0', "scoreboard sl second");
+    sb.final_report;
+
+    -- Scoreboard: string (type mark required — string literals are ambiguous with std_logic_vector)
+    sb.push(string'("hello"));
+    sb.push(string'("world"));
+    sb.check(string'("hello"), "scoreboard str pass");
+    sb.check(string'("wrong"), "scoreboard str mismatch expected");  -- expected fail
+    sb.check(string'("world"), "scoreboard str second");
     sb.final_report;
 
     wait for 100 ns;
