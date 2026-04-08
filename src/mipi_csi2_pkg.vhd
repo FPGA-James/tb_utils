@@ -158,57 +158,107 @@ package body mipi_csi2_pkg is
     return crc;
   end function;
 
-  -- Pixel packing stubs (real implementations in Task 4)
+  -- Pixel packing functions
 
   function pack_raw8(pixels : std_logic_vector; n_pixels : positive)
     return std_logic_vector is
   begin
-    return pixels(n_pixels*8-1 downto 0);
+    return pixels(pixels'left downto pixels'left - n_pixels*8 + 1);
   end function;
 
   function pack_raw10(pixels : std_logic_vector; n_pixels : positive)
     return std_logic_vector is
     constant n_groups : natural := n_pixels / 4;
-    variable result   : std_logic_vector(n_groups*40-1 downto 0) := (others => '0');
+    variable result   : std_logic_vector(n_groups*40-1 downto 0);
+    variable p0, p1, p2, p3 : std_logic_vector(9 downto 0);
+    variable base_px, base_out : natural;
   begin
+    for g in 0 to n_groups-1 loop
+      base_px  := (n_groups - g) * 4;
+      p0 := pixels(base_px*10-1       downto (base_px-1)*10);
+      p1 := pixels((base_px-1)*10-1   downto (base_px-2)*10);
+      p2 := pixels((base_px-2)*10-1   downto (base_px-3)*10);
+      p3 := pixels((base_px-3)*10-1   downto (base_px-4)*10);
+      base_out := (n_groups - 1 - g) * 40;
+      result(base_out+39 downto base_out+32) := p0(9 downto 2);
+      result(base_out+31 downto base_out+24) := p1(9 downto 2);
+      result(base_out+23 downto base_out+16) := p2(9 downto 2);
+      result(base_out+15 downto base_out+8)  := p3(9 downto 2);
+      result(base_out+7  downto base_out)    := p3(1 downto 0) & p2(1 downto 0) &
+                                                p1(1 downto 0) & p0(1 downto 0);
+    end loop;
     return result;
   end function;
 
   function pack_raw12(pixels : std_logic_vector; n_pixels : positive)
     return std_logic_vector is
     constant n_groups : natural := n_pixels / 2;
-    variable result   : std_logic_vector(n_groups*24-1 downto 0) := (others => '0');
+    variable result   : std_logic_vector(n_groups*24-1 downto 0);
+    variable p0, p1   : std_logic_vector(11 downto 0);
+    variable base_px, base_out : natural;
   begin
+    for g in 0 to n_groups-1 loop
+      base_px  := (n_groups - g) * 2;
+      p0 := pixels(base_px*12-1     downto (base_px-1)*12);
+      p1 := pixels((base_px-1)*12-1 downto (base_px-2)*12);
+      base_out := (n_groups - 1 - g) * 24;
+      result(base_out+23 downto base_out+16) := p0(11 downto 4);
+      result(base_out+15 downto base_out+8)  := p1(11 downto 4);
+      result(base_out+7  downto base_out)    := p1(3 downto 0) & p0(3 downto 0);
+    end loop;
     return result;
   end function;
 
   function pack_raw14(pixels : std_logic_vector; n_pixels : positive)
     return std_logic_vector is
     constant n_groups : natural := n_pixels / 4;
-    variable result   : std_logic_vector(n_groups*56-1 downto 0) := (others => '0');
+    variable result   : std_logic_vector(n_groups*56-1 downto 0);
+    variable p0, p1, p2, p3 : std_logic_vector(13 downto 0);
+    variable base_px, base_out : natural;
   begin
+    for g in 0 to n_groups-1 loop
+      base_px  := (n_groups - g) * 4;
+      p0 := pixels(base_px*14-1       downto (base_px-1)*14);
+      p1 := pixels((base_px-1)*14-1   downto (base_px-2)*14);
+      p2 := pixels((base_px-2)*14-1   downto (base_px-3)*14);
+      p3 := pixels((base_px-3)*14-1   downto (base_px-4)*14);
+      base_out := (n_groups - 1 - g) * 56;
+      result(base_out+55 downto base_out+48) := p0(13 downto 6);
+      result(base_out+47 downto base_out+40) := p1(13 downto 6);
+      result(base_out+39 downto base_out+32) := p2(13 downto 6);
+      result(base_out+31 downto base_out+24) := p3(13 downto 6);
+      result(base_out+23 downto base_out+16) := p0(5 downto 4) & p1(5 downto 4) &
+                                                p2(5 downto 4) & p3(5 downto 4);
+      result(base_out+15 downto base_out+8)  := p0(3 downto 0) & p1(3 downto 0);
+      result(base_out+7  downto base_out)    := p2(3 downto 0) & p3(3 downto 0);
+    end loop;
     return result;
   end function;
 
   function pack_raw16(pixels : std_logic_vector; n_pixels : positive)
     return std_logic_vector is
-    variable result : std_logic_vector(n_pixels*16-1 downto 0) := (others => '0');
+    variable result : std_logic_vector(n_pixels*16-1 downto 0);
+    variable p      : std_logic_vector(15 downto 0);
   begin
+    for i in 0 to n_pixels-1 loop
+      p := pixels((n_pixels-i)*16-1 downto (n_pixels-i-1)*16);
+      -- LSB first: byte 0 = p[7:0], byte 1 = p[15:8]
+      result((n_pixels-i)*16-1   downto (n_pixels-i)*16-8)  := p(7 downto 0);
+      result((n_pixels-i)*16-9   downto (n_pixels-i-1)*16)  := p(15 downto 8);
+    end loop;
     return result;
   end function;
 
   function pack_yuv422_8(pixels : std_logic_vector; n_pixels : positive)
     return std_logic_vector is
-    variable result : std_logic_vector(n_pixels*16-1 downto 0) := (others => '0');
   begin
-    return result;
+    return pixels(pixels'left downto pixels'left - n_pixels*16 + 1);
   end function;
 
   function pack_rgb888(pixels : std_logic_vector; n_pixels : positive)
     return std_logic_vector is
-    variable result : std_logic_vector(n_pixels*24-1 downto 0) := (others => '0');
   begin
-    return result;
+    return pixels(pixels'left downto pixels'left - n_pixels*24 + 1);
   end function;
 
   -- Procedure stubs (real implementations in Tasks 5-6)
