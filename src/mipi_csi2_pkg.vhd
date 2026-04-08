@@ -456,8 +456,13 @@ begin
     rx_byte(byt, is_k);
     rx_crc(15 downto 8) := byt;
 
-    -- Verify CRC over the received payload bytes (same slice csi2_write_long used)
-    crc_ok := (rx_crc = csi2_crc16(raw_payload(payload'left downto payload'left - wc_val*8 + 1)));
+    -- Verify CRC over the received payload bytes (same slice csi2_write_long used).
+    -- Guard wc_val=0: slice would be reversed (null range), so compare against init value.
+    if wc_val = 0 then
+      crc_ok := (rx_crc = x"FFFF");
+    else
+      crc_ok := (rx_crc = csi2_crc16(raw_payload(payload'left downto payload'left - wc_val*8 + 1)));
+    end if;
 
     -- Read K_EOP
     rx_byte(byt, is_k);
