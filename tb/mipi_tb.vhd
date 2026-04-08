@@ -56,8 +56,9 @@ begin
   end process;
 
   writer : process
-    variable payload : std_logic_vector(64 * 24 - 1 downto 0);
-    variable packed  : std_logic_vector(64 * 24 - 1 downto 0);
+    variable payload      : std_logic_vector(64 * 24 - 1 downto 0);
+    variable packed       : std_logic_vector(64 * 24 - 1 downto 0);
+    variable push_buf     : std_logic_vector(64 * 24 - 1 downto 0);
     variable packed_bytes : natural;
     variable px_val  : natural;
     variable px_slv  : std_logic_vector(23 downto 0);
@@ -147,7 +148,12 @@ begin
           when others => null;
         end case;
 
-        sb.push(packed(packed_bytes * 8 - 1 downto 0));
+        -- Align push to MSBs of push_buf so it matches the layout that
+        -- csi2_read_packet uses when filling rx_payload (byte 0 at MSBs).
+        push_buf := (others => '0');
+        push_buf(push_buf'left downto push_buf'left - packed_bytes*8 + 1) :=
+          packed(packed_bytes * 8 - 1 downto 0);
+        sb.push(push_buf);
 
         csi2_write_long(clk, tvalid, tready, tdata, tuser, tlast,
                         TESTS(t).dt, TESTS(t).vc,

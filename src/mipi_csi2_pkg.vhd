@@ -439,14 +439,12 @@ begin
     end if;
 
     -- Long packet: read wc_val payload bytes.
-    -- Store MSB-first so byte 0 occupies bits [wc_val*8-1:wc_val*8-8], matching
-    -- the writer's payload'left-relative indexing when the caller's vector has
-    -- payload'left = wc_val*8-1.
+    -- Byte 0 at payload'left (MSBs); matches how csi2_write_long extracts bytes.
     byte_count := 0;
     for i in 0 to wc_val-1 loop
       rx_byte(byt, is_k);
       if byte_count < payload'length / 8 then
-        raw_payload(wc_val*8 - 1 - byte_count*8 downto wc_val*8 - byte_count*8 - 8) := byt;
+        raw_payload(payload'left - byte_count*8 downto payload'left - byte_count*8 - 7) := byt;
       end if;
       byte_count := byte_count + 1;
     end loop;
@@ -458,8 +456,8 @@ begin
     rx_byte(byt, is_k);
     rx_crc(15 downto 8) := byt;
 
-    -- Verify CRC: CRC was computed over the wc_val bytes starting at bit wc_val*8-1
-    crc_ok := (rx_crc = csi2_crc16(raw_payload(wc_val*8 - 1 downto 0)));
+    -- Verify CRC over the received payload bytes (same slice csi2_write_long used)
+    crc_ok := (rx_crc = csi2_crc16(raw_payload(payload'left downto payload'left - wc_val*8 + 1)));
 
     -- Read K_EOP
     rx_byte(byt, is_k);
