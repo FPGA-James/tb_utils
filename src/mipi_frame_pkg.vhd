@@ -190,7 +190,64 @@ package body mipi_frame_pkg is
                 integer'image(cfg.height) & " frame sent from " & filename);
   end procedure;
 
-  -- Stubs for Tasks 8 and 9
+  -- Read n_pixels (cfg.width) from open file f, pack per data type, return packed SLV.
+  -- packed output: byte 0 at MSB (packed(n_bytes*8-1 downto n_bytes*8-8)).
+  -- Caller must allocate packed large enough for the worst-case packed size.
+  procedure read_and_pack_line(
+    file     f              : text;
+    constant cfg            : in  mipi_frame_cfg_t;
+    variable packed         : out std_logic_vector;
+    variable n_packed_bytes : out natural
+  ) is
+    constant bpp   : positive := px_bits_raw(cfg.data_type);
+    variable pxbuf : std_logic_vector(cfg.width * 24 - 1 downto 0) := (others => '0');
+    variable l     : line;
+    variable good  : boolean;
+    variable p_slv : std_logic_vector(bpp - 1 downto 0);
+  begin
+    for i in 0 to cfg.width - 1 loop
+      loop
+        readline(f, l);
+        next when l'length = 0;
+        next when l'length > 0 and l(l'left) = '#';
+        hread(l, p_slv, good);
+        exit when good;
+      end loop;
+      pxbuf((cfg.width - i) * bpp - 1 downto (cfg.width - i - 1) * bpp) := p_slv;
+    end loop;
+
+    case cfg.data_type is
+      when RAW8 =>
+        packed(cfg.width * 8 - 1 downto 0) :=
+          pack_raw8(pxbuf(cfg.width * 8 - 1 downto 0), cfg.width);
+        n_packed_bytes := cfg.width;
+      when RAW10 =>
+        packed((cfg.width / 4) * 40 - 1 downto 0) :=
+          pack_raw10(pxbuf(cfg.width * 10 - 1 downto 0), cfg.width);
+        n_packed_bytes := (cfg.width / 4) * 5;
+      when RAW12 =>
+        packed((cfg.width / 2) * 24 - 1 downto 0) :=
+          pack_raw12(pxbuf(cfg.width * 12 - 1 downto 0), cfg.width);
+        n_packed_bytes := (cfg.width / 2) * 3;
+      when RAW14 =>
+        packed((cfg.width / 4) * 56 - 1 downto 0) :=
+          pack_raw14(pxbuf(cfg.width * 14 - 1 downto 0), cfg.width);
+        n_packed_bytes := (cfg.width / 4) * 7;
+      when RAW16 =>
+        packed(cfg.width * 16 - 1 downto 0) :=
+          pack_raw16(pxbuf(cfg.width * 16 - 1 downto 0), cfg.width);
+        n_packed_bytes := cfg.width * 2;
+      when YUV422_8 =>
+        packed(cfg.width * 16 - 1 downto 0) :=
+          pack_yuv422_8(pxbuf(cfg.width * 16 - 1 downto 0), cfg.width);
+        n_packed_bytes := cfg.width * 2;
+      when RGB888 =>
+        packed(cfg.width * 24 - 1 downto 0) :=
+          pack_rgb888(pxbuf(cfg.width * 24 - 1 downto 0), cfg.width);
+        n_packed_bytes := cfg.width * 3;
+    end case;
+  end procedure;
+
   procedure mipi_packet_write(
     signal   clk      : in  std_logic;
     signal   tvalid   : out std_logic;
@@ -201,8 +258,36 @@ package body mipi_frame_pkg is
     constant cfg      : in  mipi_frame_cfg_t;
     constant filename : in  string
   ) is
-  begin
-    null;
+  file     f       : text;
+  variable fstatus : file_open_status;
+  -- Worst-case line payload: cfg.width * 3 bytes (RGB888)
+  variable packed  : std_logic_vector(4095 * 8 - 1 downto 0) := (others => '0');
+  variable n_bytes : natural;
+begin
+  file_open(fstatus, f, filename, read_mode);
+  assert fstatus = open_ok
+    report "mipi_packet_write: cannot open " & filename severity failure;
+
+  -- Frame Start
+  csi2_write_short(clk, tvalid, tready, tdata, tuser, tlast,
+                   DT_FRAME_START, cfg.vc, cfg.frame_number);
+
+  -- One long packet per line
+  for row in 0 to cfg.height - 1 loop
+    packed := (others => '0');
+    read_and_pack_line(f, cfg, packed, n_bytes);
+    csi2_write_long(clk, tvalid, tready, tdata, tuser, tlast,
+                    to_csi2_dt(cfg.data_type), cfg.vc,
+                    packed(n_bytes * 8 - 1 downto 0));
+  end loop;
+
+  -- Frame End
+  csi2_write_short(clk, tvalid, tready, tdata, tuser, tlast,
+                   DT_FRAME_END, cfg.vc, cfg.frame_number);
+
+  file_close(f);
+  print(INFO, "mipi_packet_write: " & integer'image(cfg.width) & "x" &
+              integer'image(cfg.height) & " frame sent");
   end procedure;
 
   procedure mipi_packet_check(
