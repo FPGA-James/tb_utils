@@ -268,7 +268,31 @@ package body mipi_csi2_pkg is
     return pixels(pixels'left downto pixels'left - n_pixels*24 + 1);
   end function;
 
-  -- Procedure stubs (real implementations in Tasks 5-6)
+  -- Internal helper: drive one byte on the link-layer AXI-Stream.
+  procedure drive_byte(
+    signal clk    : in  std_logic;
+    signal tvalid : out std_logic;
+    signal tready : in  std_logic;
+    signal tdata  : out std_logic_vector(7 downto 0);
+    signal tuser  : out std_logic;
+    signal tlast  : out std_logic;
+    constant val  : in  std_logic_vector(7 downto 0);
+    constant kc   : in  std_logic;
+    constant last : in  boolean
+  ) is
+  begin
+    tdata  <= val;
+    tuser  <= kc;
+    tlast  <= '1' when last else '0';
+    tvalid <= '1';
+    wait until rising_edge(clk) and tready = '1';
+    tvalid <= '0';
+    tdata  <= (others => '0');
+    tuser  <= '0';
+    tlast  <= '0';
+  end procedure;
+
+  -- Procedure implementations (Tasks 5-6)
 
   procedure csi2_write_short(
     signal   clk        : in  std_logic;
@@ -281,8 +305,22 @@ package body mipi_csi2_pkg is
     constant vc         : in  natural range 0 to 3;
     constant word_count : in  natural
   ) is
-  begin
-    null;
+  variable b0, b1, b2, b3 : std_logic_vector(7 downto 0);
+  variable wc : std_logic_vector(15 downto 0);
+begin
+  wc := std_logic_vector(to_unsigned(word_count, 16));
+  b0 := std_logic_vector(to_unsigned(vc, 2)) & data_type;
+  b1 := wc(7 downto 0);
+  b2 := wc(15 downto 8);
+  b3 := csi2_ecc(b0, b1, b2);
+  drive_byte(clk, tvalid, tready, tdata, tuser, tlast, K_SOP, '1', false);
+  drive_byte(clk, tvalid, tready, tdata, tuser, tlast, b0,   '0', false);
+  drive_byte(clk, tvalid, tready, tdata, tuser, tlast, b1,   '0', false);
+  drive_byte(clk, tvalid, tready, tdata, tuser, tlast, b2,   '0', false);
+  drive_byte(clk, tvalid, tready, tdata, tuser, tlast, b3,   '0', false);
+  drive_byte(clk, tvalid, tready, tdata, tuser, tlast, K_EOP,'1', true);
+  print(DEBUG, "csi2_write_short: DT=" & to_hstring(data_type) &
+               " VC=" & integer'image(vc) & " WC=" & integer'image(word_count));
   end procedure;
 
   procedure csi2_write_long(
@@ -296,8 +334,38 @@ package body mipi_csi2_pkg is
     constant vc        : in  natural range 0 to 3;
     constant payload   : in  std_logic_vector
   ) is
-  begin
-    null;
+  variable n_bytes : natural;
+  variable b0, b1, b2, b3 : std_logic_vector(7 downto 0);
+  variable wc  : std_logic_vector(15 downto 0);
+  variable crc : std_logic_vector(15 downto 0);
+  variable byt : std_logic_vector(7 downto 0);
+begin
+  n_bytes := payload'length / 8;
+  wc  := std_logic_vector(to_unsigned(n_bytes, 16));
+  b0  := std_logic_vector(to_unsigned(vc, 2)) & data_type;
+  b1  := wc(7 downto 0);
+  b2  := wc(15 downto 8);
+  b3  := csi2_ecc(b0, b1, b2);
+  crc := csi2_crc16(payload);
+  -- K_SOP
+  drive_byte(clk, tvalid, tready, tdata, tuser, tlast, K_SOP, '1', false);
+  -- Header (4 bytes)
+  drive_byte(clk, tvalid, tready, tdata, tuser, tlast, b0, '0', false);
+  drive_byte(clk, tvalid, tready, tdata, tuser, tlast, b1, '0', false);
+  drive_byte(clk, tvalid, tready, tdata, tuser, tlast, b2, '0', false);
+  drive_byte(clk, tvalid, tready, tdata, tuser, tlast, b3, '0', false);
+  -- Payload bytes (MSB of payload at index 0)
+  for i in 0 to n_bytes-1 loop
+    byt := payload(payload'left - i*8 downto payload'left - i*8 - 7);
+    drive_byte(clk, tvalid, tready, tdata, tuser, tlast, byt, '0', false);
+  end loop;
+  -- CRC-16 footer (2 bytes, LSB first)
+  drive_byte(clk, tvalid, tready, tdata, tuser, tlast, crc(7 downto 0),  '0', false);
+  drive_byte(clk, tvalid, tready, tdata, tuser, tlast, crc(15 downto 8), '0', false);
+  -- K_EOP
+  drive_byte(clk, tvalid, tready, tdata, tuser, tlast, K_EOP, '1', true);
+  print(DEBUG, "csi2_write_long: DT=" & to_hstring(data_type) &
+               " VC=" & integer'image(vc) & " bytes=" & integer'image(n_bytes));
   end procedure;
 
   procedure csi2_read_packet(
