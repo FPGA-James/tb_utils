@@ -380,8 +380,97 @@ begin
     variable payload   : out std_logic_vector;
     variable crc_ok    : out boolean
   ) is
+  variable byt         : std_logic_vector(7 downto 0);
+  variable is_k        : std_logic;
+  variable b0,b1,b2,b3 : std_logic_vector(7 downto 0);
+  variable wc_val      : natural;
+  variable rx_crc      : std_logic_vector(15 downto 0);
+  variable raw_payload : std_logic_vector(payload'range);
+  variable byte_count  : natural;
+
+  -- Read one byte from the stream, drive tready
+  procedure rx_byte(variable val : out std_logic_vector(7 downto 0);
+                    variable kc  : out std_logic) is
   begin
-    wait;
+    tready <= '1';
+    wait until rising_edge(clk) and tvalid = '1';
+    val := tdata;
+    kc  := tuser;
+    tready <= '0';
+  end procedure;
+
+  begin
+    payload     := (payload'range => '0');
+    raw_payload := (raw_payload'range => '0');
+    crc_ok      := false;
+
+    -- Skip K_IDLE; wait for K_SOP
+    loop
+      rx_byte(byt, is_k);
+      exit when is_k = '1' and byt = K_SOP;
+      if is_k = '0' then
+        print(WARNING, "csi2_read_packet: unexpected data byte before SOP, ignoring");
+      end if;
+    end loop;
+
+    -- Read 4-byte header
+    rx_byte(b0, is_k);
+    rx_byte(b1, is_k);
+    rx_byte(b2, is_k);
+    rx_byte(b3, is_k);
+
+    data_type := b0(5 downto 0);
+    vc        := to_integer(unsigned(b0(7 downto 6)));
+
+    -- Verify ECC
+    if b3 /= csi2_ecc(b0, b1, b2) then
+      print(ERROR, "csi2_read_packet: ECC mismatch on header");
+    end if;
+
+    wc_val := to_integer(unsigned(b2 & b1));
+
+    -- Determine if short or long packet
+    -- Short: DT[5:4] = "00"; long: DT[5:4] /= "00"
+    if b0(5 downto 4) = "00" then
+      -- Short packet: no payload, no CRC. Next byte must be K_EOP.
+      rx_byte(byt, is_k);
+      crc_ok := true;
+      return;
+    end if;
+
+    -- Long packet: read wc_val payload bytes.
+    -- Store MSB-first so byte 0 occupies bits [wc_val*8-1:wc_val*8-8], matching
+    -- the writer's payload'left-relative indexing when the caller's vector has
+    -- payload'left = wc_val*8-1.
+    byte_count := 0;
+    for i in 0 to wc_val-1 loop
+      rx_byte(byt, is_k);
+      if byte_count < payload'length / 8 then
+        raw_payload(wc_val*8 - 1 - byte_count*8 downto wc_val*8 - byte_count*8 - 8) := byt;
+      end if;
+      byte_count := byte_count + 1;
+    end loop;
+    payload := raw_payload;
+
+    -- Read 2-byte CRC (LSB first)
+    rx_byte(byt, is_k);
+    rx_crc(7 downto 0)  := byt;
+    rx_byte(byt, is_k);
+    rx_crc(15 downto 8) := byt;
+
+    -- Verify CRC: CRC was computed over the wc_val bytes starting at bit wc_val*8-1
+    crc_ok := (rx_crc = csi2_crc16(raw_payload(wc_val*8 - 1 downto 0)));
+
+    -- Read K_EOP
+    rx_byte(byt, is_k);
+    if not (is_k = '1' and byt = K_EOP) then
+      print(ERROR, "csi2_read_packet: expected K_EOP, got " & to_hstring(byt));
+    end if;
+
+    print(DEBUG, "csi2_read_packet: DT=" & to_hstring(b0(5 downto 0)) &
+                 " VC=" & integer'image(to_integer(unsigned(b0(7 downto 6)))) &
+                 " bytes=" & integer'image(wc_val) &
+                 " crc_ok=" & boolean'image(crc_ok));
   end procedure;
 
 end package body mipi_csi2_pkg;
