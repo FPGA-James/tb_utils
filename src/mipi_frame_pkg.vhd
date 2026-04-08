@@ -301,8 +301,83 @@ begin
     constant filename : in  string;
     variable pass     : out boolean
   ) is
-  begin
-    pass := false;
+  file     f             : text;
+  variable fstatus       : file_open_status;
+  variable rx_dt         : std_logic_vector(5 downto 0);
+  variable rx_vc         : natural;
+  variable rx_crc_ok     : boolean;
+  variable rx_payload    : std_logic_vector(4095 * 8 - 1 downto 0);
+  variable exp_packed    : std_logic_vector(4095 * 8 - 1 downto 0) := (others => '0');
+  variable n_bytes       : natural;
+  variable ok            : boolean := true;
+  variable lines_checked : natural := 0;
+  constant exp_dt        : std_logic_vector(5 downto 0) := to_csi2_dt(cfg.data_type);
+begin
+  file_open(fstatus, f, filename, read_mode);
+  assert fstatus = open_ok
+    report "mipi_packet_check: cannot open " & filename severity failure;
+
+  pass := true;
+
+  for expected_pkt in 0 to cfg.height + 1 loop
+    rx_payload := (others => '0');
+    csi2_read_packet(clk, tvalid, tready, tdata, tuser, tlast,
+                     rx_dt, rx_vc, rx_payload, rx_crc_ok);
+
+    if rx_dt = DT_FRAME_START then
+      if rx_vc /= cfg.vc then
+        print(ERROR, "mipi_packet_check: FS VC mismatch: got " & integer'image(rx_vc) &
+                     " expected " & integer'image(cfg.vc));
+        ok := false;
+      end if;
+
+    elsif rx_dt = DT_FRAME_END then
+      if rx_vc /= cfg.vc then
+        print(ERROR, "mipi_packet_check: FE VC mismatch");
+        ok := false;
+      end if;
+      exit;
+
+    elsif rx_dt = exp_dt then
+      if not rx_crc_ok then
+        print(ERROR, "mipi_packet_check: CRC error on line " & integer'image(lines_checked));
+        ok := false;
+      end if;
+      if rx_vc /= cfg.vc then
+        print(ERROR, "mipi_packet_check: VC mismatch on line " & integer'image(lines_checked));
+        ok := false;
+      end if;
+
+      -- Compute expected payload from file
+      exp_packed := (others => '0');
+      read_and_pack_line(f, cfg, exp_packed, n_bytes);
+
+      -- rx_payload: byte 0 at rx_payload'left (MSBs); exp_packed: byte 0 at exp_packed(n_bytes*8-1)
+      if rx_payload(rx_payload'left downto rx_payload'left - n_bytes*8 + 1) /=
+         exp_packed(n_bytes*8 - 1 downto 0) then
+        print(ERROR, "mipi_packet_check: payload mismatch on line " &
+                     integer'image(lines_checked));
+        ok := false;
+      end if;
+      lines_checked := lines_checked + 1;
+
+    else
+      print(WARNING, "mipi_packet_check: unexpected DT=" & to_hstring(rx_dt) & ", skipping");
+    end if;
+  end loop;
+
+  if lines_checked /= cfg.height then
+    print(ERROR, "mipi_packet_check: expected " & integer'image(cfg.height) &
+                 " data lines, got " & integer'image(lines_checked));
+    ok := false;
+  end if;
+
+  file_close(f);
+  pass := ok;
+  if ok then
+    print(INFO, "mipi_packet_check: PASS - " & integer'image(cfg.width) & "x" &
+                integer'image(cfg.height) & " frame verified");
+  end if;
   end procedure;
 
 end package body mipi_frame_pkg;
