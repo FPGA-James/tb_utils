@@ -163,6 +163,8 @@ package body mipi_csi2_pkg is
   function pack_raw8(pixels : std_logic_vector; n_pixels : positive)
     return std_logic_vector is
   begin
+    -- MSB-relative slice: pixel 0 is at pixels'left per the packing convention.
+    -- Safe for over-wide actuals; equivalent to pixels(n_pixels*8-1 downto 0) when left=n_pixels*8-1.
     return pixels(pixels'left downto pixels'left - n_pixels*8 + 1);
   end function;
 
@@ -242,7 +244,8 @@ package body mipi_csi2_pkg is
   begin
     for i in 0 to n_pixels-1 loop
       p := pixels((n_pixels-i)*16-1 downto (n_pixels-i-1)*16);
-      -- LSB first: byte 0 = p[7:0], byte 1 = p[15:8]
+      -- CSI-2 RAW16: low byte transmitted first within each pixel.
+      -- result layout (MSB-first): [P0_lo][P0_hi][P1_lo][P1_hi]...
       result((n_pixels-i)*16-1   downto (n_pixels-i)*16-8)  := p(7 downto 0);
       result((n_pixels-i)*16-9   downto (n_pixels-i-1)*16)  := p(15 downto 8);
     end loop;
@@ -252,12 +255,16 @@ package body mipi_csi2_pkg is
   function pack_yuv422_8(pixels : std_logic_vector; n_pixels : positive)
     return std_logic_vector is
   begin
+    -- MSB-relative slice: pixel 0 is at pixels'left per the packing convention.
+    -- Safe for over-wide actuals; equivalent to pixels(n_pixels*16-1 downto 0) when left=n_pixels*16-1.
     return pixels(pixels'left downto pixels'left - n_pixels*16 + 1);
   end function;
 
   function pack_rgb888(pixels : std_logic_vector; n_pixels : positive)
     return std_logic_vector is
   begin
+    -- MSB-relative slice: pixel 0 is at pixels'left per the packing convention.
+    -- Safe for over-wide actuals; equivalent to pixels(n_pixels*24-1 downto 0) when left=n_pixels*24-1.
     return pixels(pixels'left downto pixels'left - n_pixels*24 + 1);
   end function;
 
